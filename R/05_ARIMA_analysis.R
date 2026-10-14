@@ -318,7 +318,7 @@ print(resultados_rmse[1,"BIC"])
 
 
 # ------------------------------------------------------------
-# 6. usando a função auto.arima() para análise
+# 6. Utilizando a função auto.arima() do forecast para análise
 # ------------------------------------------------------------
 
 modelo_auto <- auto.arima(serie_treino)
