@@ -324,4 +324,3 @@ print(resultados_rmse[1,"BIC"])
 modelo_auto <- auto.arima(serie_treino)
 summary(modelo_auto)
 checkresiduals(modelo_auto)
-
