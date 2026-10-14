@@ -13,6 +13,7 @@ library(dplyr)
 library(forecast)
 library(ggplot2)
 library(forecast)
+library(tseries)
 
 # Carregando os dados
 serie_inadp <- read.csv(
@@ -133,15 +134,71 @@ ggPacf(ts_serie) +
 
 
 # ------------------------------------------------------------
-# 1.7 ACF da série diferenciada
+# 1.7 Testes de estacionalidade
 # ------------------------------------------------------------
 
-ts_diff <- diff(ts_serie)
+adf.test(ts_serie)
+kpss.test(ts_serie)
 
-ggAcf(ts_diff) +
+# ------------------------------------------------------------
+# 1.8 Olhando a série diferenciada
+# ------------------------------------------------------------
+
+ts_diff1 <- diff(ts_serie, differences = 1)
+
+autoplot(ts_diff1) +
   labs(
-    title = "1.7 - ACF da série diferenciada",
+    title = "1.8.1 - Série diferenciada, differences = 1",
+    x = "Tempo",
+    y = "Percentual de inadimplência"
+  ) +
+  theme_minimal()
+
+
+ggAcf(ts_diff1) +
+  labs(
+    title = "1.8.2 - ACF da série diferenciada, differences = 1",
     x = "Defasagem",
     y = "Autocorrelação"
   ) +
   theme_minimal()
+
+ggPacf(ts_diff1) +
+  labs(
+    title = "1.8.3 - PACF da série diferenciada, differences = 1",
+    x = "Defasagem",
+    y = "Autocorrelação"
+  ) +
+  theme_minimal()
+
+adf.test(ts_diff1)
+kpss.test(ts_diff1)
+
+ts_diff2 <- diff(ts_serie, differences = 2)
+
+autoplot(ts_diff2) +
+  labs(
+    title = "1.8.4 - Série diferenciada, differences = 2",
+    x = "Tempo",
+    y = "Percentual de inadimplência"
+  ) +
+  theme_minimal()
+
+ggAcf(ts_diff2) +
+  labs(
+    title = "1.8.5 - ACF da série diferenciada, differences = 2",
+    x = "Defasagem",
+    y = "Autocorrelação"
+  ) +
+  theme_minimal()
+
+ggPacf(ts_diff2) +
+  labs(
+    title = "1.8.6 - PACF da série diferenciada, differences = 2",
+    x = "Defasagem",
+    y = "Autocorrelação"
+  ) +
+  theme_minimal()
+
+adf.test(ts_diff2)
+kpss.test(ts_diff2)
