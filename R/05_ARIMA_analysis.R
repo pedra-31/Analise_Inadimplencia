@@ -70,81 +70,48 @@ autoplot(serie_treino, series = "Treino") +
 # ------------------------------------------------------------
 
 
-# ARIMA(1,2,0): AR(1)
-modelo_120 <- forecast::Arima(
-  serie_treino,
-  order = c(1, 2, 0),
-  include.drift = FALSE,
-  method = "ML"
+# Matriz de ordens: d permanece fixo em 2 e p/q variam de 0 a 3.
+ordens_arima <- expand.grid(p = 0:10, q = 0:10)
+ordens_arima$nome <- with(
+  ordens_arima,
+  sprintf("ARIMA(%d,2,%d)", p, q)
 )
 
-# ARIMA(0,2,1): MA(1)
-modelo_021 <- forecast::Arima(
-  serie_treino,
-  order = c(0, 2, 1),
-  include.drift = FALSE,
-  method = "ML"
+ajustar_arima <- function(p, q) {
+  tryCatch(
+    forecast::Arima(
+      serie_treino,
+      order = c(p, 2, q),
+      include.drift = FALSE,
+      method = "ML"
+    ),
+    error = function(e) NULL
+  )
+}
+
+modelos <- setNames(
+  lapply(seq_len(nrow(ordens_arima)), function(i) {
+    ajustar_arima(ordens_arima$p[i], ordens_arima$q[i])
+  }),
+  ordens_arima$nome
 )
 
-# ARIMA(1,2,1): AR(1) + MA(1)
-modelo_121 <- forecast::Arima(
-  serie_treino,
-  order = c(1, 2, 1),
-  include.drift = FALSE,
-  method = "ML"
-)
+# Remove candidatos que não puderam ser estimados.
+modelos <- modelos[!vapply(modelos, is.null, logical(1))]
 
-# ARIMA(2,2,1): AR(2) + MA(1)
-modelo_221 <- forecast::Arima(
-  serie_treino,
-  order = c(2, 2, 1),
-  include.drift = FALSE,
-  method = "ML"
-)
-
-# ARIMA(1,2,2): AR(1) + MA(2)
-modelo_122 <- forecast::Arima(
-  serie_treino,
-  order = c(1, 2, 2),
-  include.drift = FALSE,
-  method = "ML"
-)
-
-# ARIMA(2,2,2): AR(2) + MA(2)
-modelo_222 <- forecast::Arima(
-  serie_treino,
-  order = c(2, 2, 2),
-  include.drift = FALSE,
-  method = "ML"
-)
-
-modelo_123 <- forecast::Arima(
-  serie_treino,
-  order = c(1, 2, 3),
-  include.drift = FALSE,
-  method = "ML"
-)
-
-# Organizando os modelos em uma lista
-modelos <- list(
-  "ARIMA(1,2,0)" = modelo_120,
-  "ARIMA(0,2,1)" = modelo_021,
-  "ARIMA(1,2,1)" = modelo_121,
-  "ARIMA(2,2,1)" = modelo_221,
-  "ARIMA(1,2,2)" = modelo_122,
-  "ARIMA(2,2,2)" = modelo_222,
-  "ARIMA(1,2,3)" = modelo_123
-)
+if (length(modelos) == 0) {
+  stop("Nenhum modelo ARIMA da matriz pôde ser ajustado.")
+}
 
 
 #Akaike’s Information Criterion (AIC), which was useful in selecting predictors for regression (see Section 7.5), 
 #is also useful for determining the order of an ARIMA model. It can be written as:
-#AIC=−2log⁡(L)+2(p+q+k+1),
+#AIC=−2log(L)+2(p+q+k+1),
 #AIC=−2log(L)+2(p+q+k+1), where LL is the likelihood of the data, k=1k=1 if c≠0c=0 and k=0k=0 if c=0c=0. Note that the last term in parentheses is the number of parameters in the model (including σ2σ2, the variance of the residuals).
 
 #For ARIMA models, the corrected AIC can be written as
 #AICc=AIC+2(p+q+k+1)(p+q+k+2)T−p−q−k−2,
-#AICc=AIC+T−p−q−k−22(p+q+k+1)(p+q+k+2)​,
+#AICc=AIC+T−p−q−k−22(p+q+k+1)(p+q+k+2),
 
 # ------------------------------------------------------------
 # 3.2 Função para calcular as métricas
@@ -176,48 +143,15 @@ avaliar_modelo <- function(modelo, nome) {
 # 3.3 Avaliação individual dos modelos
 # ------------------------------------------------------------
 
-resultado_021 <- avaliar_modelo(
-  modelo_021, "ARIMA(0,2,1)"
-)
-
-resultado_120 <- avaliar_modelo(
-  modelo_120, "ARIMA(1,2,0)"
-)
-
-resultado_121 <- avaliar_modelo(
-  modelo_121, "ARIMA(1,2,1)"
-)
-
-resultado_221 <- avaliar_modelo(
-  modelo_221, "ARIMA(2,2,1)"
-)
-
-resultado_122 <- avaliar_modelo(
-  modelo_122, "ARIMA(1,2,2)"
-)
-
-resultado_222 <- avaliar_modelo(
-  modelo_222, "ARIMA(2,2,2)"
-)
-
-resultado_123 <- avaliar_modelo(
-  modelo_123, "ARIMA(1,2,3)"
-)
+# Avalia todos os modelos que foram ajustados na matriz.
+resultados <- bind_rows(lapply(names(modelos), function(nome) {
+  avaliar_modelo(modelos[[nome]], nome)
+}))
 
 
 # ------------------------------------------------------------
 # 3.4 Comparação dos modelos
 # ------------------------------------------------------------
-
-resultados <- bind_rows(
-  resultado_021,
-  resultado_120,
-  resultado_121,
-  resultado_221,
-  resultado_122,
-  resultado_222,
-  resultado_123
-)
 
 # Ordenação pelo AICc
 resultados_aic <- resultados |>
@@ -235,14 +169,15 @@ print(resultados_rmse)
 # 4. SELEÇÃO DO MODELO
 # ============================================================
 
-# Seleção pelo menor RMSE na amostra de teste
-melhor_nome <- resultados_rmse$modelo[1]
+# Considerei que o melhor modelo foi o ARIMA(1,2,2) -> 2º menor RMSE, Simples e AIC/BIC pequenos
+melhor_nome <- "ARIMA(1,2,2)"
 
 melhor_modelo <- modelos[[melhor_nome]]
 
 cat("Modelo com menor RMSE no teste:", melhor_nome, "\n")
 
 summary(melhor_modelo)
+qqnorm(melhor_modelo$residuals)
 
 
 # ------------------------------------------------------------
@@ -306,6 +241,7 @@ checkresiduals(melhor_modelo)
 # 5.4 Teste de normalidade
 # ------------------------------------------------------------
 
+#Nenhum arima que eu verifiquei passou no teste de normalidade
 shapiro.test(
   as.numeric(na.omit(residuos))
 )
@@ -324,3 +260,7 @@ print(resultados_rmse[1,"BIC"])
 modelo_auto <- auto.arima(serie_treino)
 summary(modelo_auto)
 checkresiduals(modelo_auto)
+
+modelo_auto2 <- auto.arima(serie_treino, d = 2)
+summary(modelo_auto2)
+checkresiduals(modelo_auto2)
