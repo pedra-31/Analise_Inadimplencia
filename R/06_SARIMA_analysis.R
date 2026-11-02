@@ -31,12 +31,13 @@ ts_serie <- ts(
 # 1. SEPARAÇÃO ENTRE TREINO E TESTE
 # ============================================================
 
+# n=40 - SARIMA(1,2,2)(2,2,2)[3] 
 # n=32 - SARIMA(1,2,2)(2,2,2)[3] 
 # n=24 - SARIMA(1,2,2)(0,3,1)[6]
 # n=18 - SARIMA(2,2,1)(1,2,0)[6]
 
 
-n_teste <- 18
+n_teste <- 36
 n_total <- length(ts_serie)
 n_treino <- n_total - n_teste
 
