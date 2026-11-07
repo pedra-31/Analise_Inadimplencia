@@ -1,5 +1,5 @@
 # ============================================================
-# VALIDACAO CRUZADA TEMPORAL SARIMA: HORIZONTES E ORDENS SAZONAIS
+# VALIDACAO CRUZADA TEMPORAL DE MODELOS SARIMA
 # ============================================================
 
 rm(list = ls())
@@ -15,154 +15,256 @@ serie_inadp <- read.csv(
 
 ts_serie <- ts(serie_inadp$y, start = c(2011, 3), frequency = 12)
 
+# ------------------------------------------------------------
+# 1. Separacao entre treino e teste final
+# ------------------------------------------------------------
 
-# Horizontes discretos no intervalo inclusivo 12 <= n <= 36.
-n_valores <- seq(12, 36, by = 4)
-h_max <- max(n_valores)
+n_teste <- 12
+n <- length(ts_serie)
 
-# No maximo quatro origens para limitar o tempo: com as grades abaixo,
-# serao ate 4 x 7 x 4 = 112 ajustes.
-initial <- min(60, length(ts_serie) - h_max)
-max_origens <- 4
-passo_origens <- max(1, floor((length(ts_serie) - initial - h_max) /
-                               max(1, max_origens - 1)))
-
-if (initial < 30) {
-  stop("Serie curta demais para initial >= 30 e o horizonte maximo escolhido.")
+if (n <= n_teste) {
+  stop("A serie precisa ter mais observacoes do que o tamanho do teste final.")
 }
 
-origens <- seq(initial, length(ts_serie) - h_max, by = passo_origens)
-if (length(origens) > max_origens) origens <- tail(origens, max_origens)
-if (length(origens) == 0) {
-  stop("Nao ha observacoes suficientes para os horizontes definidos.")
+serie_treino <- window(ts_serie, end = time(ts_serie)[n - n_teste])
+serie_teste <- window(ts_serie, start = time(ts_serie)[n - n_teste + 1])
+
+# ------------------------------------------------------------
+# 2. Parametros da validacao cruzada
+# ------------------------------------------------------------
+
+# As metricas serao calculadas em cada passo de previsao, de 1 ate h_cv.
+h_cv <- 6
+initial <- 60
+
+if (length(serie_treino) < initial + h_cv) {
+  stop("Serie de treino curta demais para initial e h_cv escolhidos.")
 }
 
-# Grade sazonal reduzida: sete candidatos, em periodos 3 e 6.
-# Cada linha representa (P, D, Q)[periodo].
-ordens_sazonais <- data.frame(
-  P = c(0, 1, 2, 0, 0, 1, 2),
-  D = c(1, 1, 2, 2, 1, 1, 2),
-  Q = c(1, 1, 2, 1, 1, 1, 2),
-  periodo = c(3, 3, 3, 3, 6, 6, 6)
+# ------------------------------------------------------------
+# 3. Modelos SARIMA candidatos
+# ------------------------------------------------------------
+
+# A primeira especificacao enviada apareceu duplicada; e incluida uma vez.
+modelos <- data.frame(
+  nome = c(
+    "SARIMA(1,2,2)(2,2,2)[3]",
+    "SARIMA(1,2,2)(0,3,1)[6]",
+    "SARIMA(2,2,1)(1,2,0)[6]",
+    "SARIMA(2,2,0)(0,2,2)[3]",
+    "SARIMA(2,2,3)(0,2,1)[3]",
+    "SARIMA(3,2,1)(1,1,2)[3]",
+    "SARIMA(2,2,2)(0,2,1)[3]"
+  ),
+  p = c(1, 1, 2, 2, 2, 3, 2),
+  d = c(2, 2, 2, 2, 2, 2, 2),
+  q = c(2, 2, 1, 0, 3, 1, 2),
+  P = c(2, 0, 1, 0, 0, 1, 0),
+  D = c(2, 3, 2, 2, 2, 1, 2),
+  Q = c(2, 1, 0, 2, 1, 2, 1),
+  periodo = c(3, 6, 6, 3, 3, 3, 3),
+  stringsAsFactors = FALSE
 )
 
-# p e q nao sazonais variam independentemente entre 1 e 2.
-grade_modelos <- merge(
-  expand.grid(p = 1:2, q = 1:2),
-  ordens_sazonais,
-  by = NULL
-)
-grade_modelos$modelo <- with(
-  grade_modelos,
-  sprintf("SARIMA(%d,2,%d)(%d,%d,%d)[%d]", p, q, P, D, Q, periodo)
-)
+ajustar_sarima <- function(y, especificacao) {
+  forecast::Arima(
+    y,
+    order = c(especificacao$p, especificacao$d, especificacao$q),
+    seasonal = list(
+      order = c(especificacao$P, especificacao$D, especificacao$Q),
+      period = especificacao$periodo
+    ),
+    include.drift = FALSE,
+    method = "ML"
+  )
+}
 
-erros <- array(
+# ------------------------------------------------------------
+# 4. Validacao cruzada de origem movel
+# ------------------------------------------------------------
+
+# Treino expansivo: em cada origem entram apenas dados anteriores.
+# Todas as origens possiveis sao avaliadas dentro da serie de treino.
+origens <- seq.int(initial, length(serie_treino) - h_cv)
+
+erros_cv <- array(
   NA_real_,
-  dim = c(nrow(grade_modelos), length(origens), h_max),
+  dim = c(nrow(modelos), length(origens), h_cv),
   dimnames = list(
-    modelo = grade_modelos$modelo,
+    modelo = modelos$nome,
     origem = paste0("origem_", origens),
-    horizonte = paste0("h", seq_len(h_max))
+    horizonte = paste0("h", seq_len(h_cv))
   )
 )
 
-total_ajustes <- nrow(grade_modelos) * length(origens)
+total_ajustes <- nrow(modelos) * length(origens)
 contador_ajustes <- 0L
 
-for (m in seq_len(nrow(grade_modelos))) {
+for (m in seq_len(nrow(modelos))) {
   for (i in seq_along(origens)) {
     fim_treino <- origens[i]
-    treino <- ts_serie[seq_len(fim_treino)]
-    observado <- as.numeric(ts_serie[(fim_treino + 1):(fim_treino + h_max)])
+    treino_origem <- serie_treino[seq_len(fim_treino)]
+    observado <- as.numeric(
+      serie_treino[(fim_treino + 1):(fim_treino + h_cv)]
+    )
 
     ajuste <- tryCatch(
-      forecast::Arima(
-        treino,
-        order = c(grade_modelos$p[m], 2, grade_modelos$q[m]),
-        seasonal = list(
-          order = c(grade_modelos$P[m], grade_modelos$D[m], grade_modelos$Q[m]),
-          period = grade_modelos$periodo[m]
-        ),
-        include.drift = FALSE,
-        method = "ML"
-      ),
+      ajustar_sarima(treino_origem, modelos[m, ]),
       error = function(e) {
-        message("Falha em ", grade_modelos$modelo[m], " na origem ",
-                fim_treino, ": ", conditionMessage(e))
+        message(
+          "Falha em ", modelos$nome[m], " na origem ", fim_treino,
+          ": ", conditionMessage(e)
+        )
         NULL
       }
     )
 
     if (!is.null(ajuste)) {
-      previsto <- forecast(ajuste, h = h_max)$mean
-      erros[m, i, ] <- observado - as.numeric(previsto)
+      previsto <- tryCatch(
+        as.numeric(forecast(ajuste, h = h_cv)$mean),
+        error = function(e) {
+          message(
+            "Falha ao prever com ", modelos$nome[m], " na origem ",
+            fim_treino, ": ", conditionMessage(e)
+          )
+          NULL
+        }
+      )
+
+      if (!is.null(previsto) && length(previsto) == h_cv) {
+        erros_cv[m, i, ] <- observado - previsto
+      }
     }
 
     contador_ajustes <- contador_ajustes + 1L
-    message("Ajuste ", contador_ajustes, "/", total_ajustes,
-            " concluido: ", grade_modelos$modelo[m],
-            ", origem ", fim_treino, ".")
+    message(
+      "Ajuste ", contador_ajustes, "/", total_ajustes,
+      " concluido: ", modelos$nome[m], ", origem ", fim_treino, "."
+    )
   }
 }
 
-# Para cada modelo e n, agrega os erros dos horizontes 1:n em todas as origens.
-resultados <- do.call(rbind, lapply(seq_len(nrow(grade_modelos)), function(m) {
-  do.call(rbind, lapply(n_valores, function(n) {
-    e <- erros[m, , seq_len(n), drop = FALSE]
+# ------------------------------------------------------------
+# 5. Metricas por modelo e horizonte
+# ------------------------------------------------------------
+
+# RMSE/MAE agrupados entre origens; desvio padrao/variancia do erro
+# medem quanto os erros daquele horizonte variam entre origens.
+resultados_horizonte <- do.call(rbind, lapply(seq_len(nrow(modelos)), function(m) {
+  do.call(rbind, lapply(seq_len(h_cv), function(h) {
+    e <- erros_cv[m, , h]
+    e <- e[is.finite(e)]
+
     data.frame(
-      modelo = grade_modelos$modelo[m],
-      n = n,
-      RMSE = sqrt(mean(e^2, na.rm = TRUE)),
-      MAE = mean(abs(e), na.rm = TRUE),
-      previsoes_validas = sum(!is.na(e))
+      modelo = modelos$nome[m],
+      horizonte = h,
+      RMSE = if (length(e)) sqrt(mean(e^2)) else NA_real_,
+      MAE = if (length(e)) mean(abs(e)) else NA_real_,
+      desvio_padrao_erro = if (length(e) > 1) sd(e) else NA_real_,
+      variancia_erro = if (length(e) > 1) var(e) else NA_real_,
+      origens_validas = length(e)
     )
   }))
 }))
 
-# Mantem todos os resultados na tabela, mas plota apenas os cinco modelos
-# com menor RMSE geral, agregando os horizontes e origens da validacao.
-rmse_geral <- data.frame(
-  modelo = grade_modelos$modelo,
-  RMSE_geral = vapply(seq_len(nrow(grade_modelos)), function(m) {
-    sqrt(mean(erros[m, , ]^2, na.rm = TRUE))
-  }, numeric(1))
+# Resumo agregado usado para selecionar o modelo antes do teste final.
+resumo_cv <- do.call(rbind, lapply(seq_len(nrow(modelos)), function(m) {
+  e <- as.numeric(erros_cv[m, , ])
+  e <- e[is.finite(e)]
+
+  data.frame(
+    modelo = modelos$nome[m],
+    RMSE_CV = if (length(e)) sqrt(mean(e^2)) else NA_real_,
+    MAE_CV = if (length(e)) mean(abs(e)) else NA_real_,
+    desvio_padrao_erro_CV = if (length(e) > 1) sd(e) else NA_real_,
+    variancia_erro_CV = if (length(e) > 1) var(e) else NA_real_,
+    previsoes_validas = length(e)
+  )
+}))
+
+resumo_cv <- resumo_cv[order(resumo_cv$RMSE_CV), ]
+rownames(resumo_cv) <- NULL
+
+print(resultados_horizonte, row.names = FALSE)
+print(resumo_cv, row.names = FALSE)
+
+# ------------------------------------------------------------
+# 6. Salvamento dos resultados da validacao cruzada
+# ------------------------------------------------------------
+
+write.csv(
+  resultados_horizonte,
+  "data/processed/sarima_cv_por_horizonte.csv",
+  row.names = FALSE
+)
+write.csv(
+  resumo_cv,
+  "data/processed/sarima_cv_resumo.csv",
+  row.names = FALSE
 )
 
-resultados <- resultados[order(resultados$n, resultados$RMSE), ]
-print(resultados, row.names = FALSE)
-write.csv(resultados, "data/processed/sarima_cv_por_n.csv", row.names = FALSE)
-
-top5_modelos <- head(rmse_geral$modelo[order(rmse_geral$RMSE_geral)], 5)
-resultados_grafico <- subset(resultados, modelo %in% top5_modelos)
-
-grafico <- ggplot(resultados_grafico, aes(x = n, y = RMSE, color = modelo, group = modelo)) +
+grafico_cv <- ggplot(
+  resultados_horizonte,
+  aes(x = horizonte, y = RMSE, color = modelo, group = modelo)
+) +
   geom_line() +
   geom_point(size = 2) +
+  scale_x_continuous(breaks = seq_len(h_cv)) +
   labs(
-    title = "SARIMA: RMSE de validacao cruzada por horizonte n",
-    subtitle = "p e q entre 1 e 2; sete ordens sazonais candidatas",
-    x = "Horizonte n (meses)",
-    y = "RMSE",
+    title = "SARIMA: RMSE da validacao cruzada por horizonte",
+    x = "Horizonte de previsao (passos a frente)",
+    y = "RMSE entre origens",
     color = "Modelo"
   ) +
   theme_minimal()
 
-print(grafico)
+print(grafico_cv)
 
-comparacao_geral <- do.call(rbind, lapply(seq_len(nrow(grade_modelos)), function(m) {
-  e <- erros[m, , , drop = FALSE]
-  
+# ------------------------------------------------------------
+# 7. Avaliacao unica no teste final
+# ------------------------------------------------------------
+
+if (all(!is.finite(resumo_cv$RMSE_CV))) {
+  stop("Nenhum modelo teve previsoes validas na validacao cruzada.")
+}
+
+melhor_modelo_nome <- resumo_cv$modelo[which.min(resumo_cv$RMSE_CV)]
+melhor_indice <- match(melhor_modelo_nome, modelos$nome)
+melhor_especificacao <- modelos[melhor_indice, ]
+
+ajuste_teste <- tryCatch(
+  ajustar_sarima(serie_treino, melhor_especificacao),
+  error = function(e) {
+    stop("Falha ao ajustar o modelo selecionado para o teste: ",
+         conditionMessage(e))
+  }
+)
+
+previsao_teste <- forecast(ajuste_teste, h = n_teste)
+resultado_teste <- accuracy(previsao_teste, serie_teste)
+
+cat("Modelo selecionado pela validacao cruzada:", melhor_modelo_nome, "\n")
+print(resultado_teste)
+
+write.csv(
   data.frame(
-    modelo = grade_modelos$modelo[m],
-    RMSE = sqrt(mean(e^2, na.rm = TRUE)),
-    MAE = mean(abs(e), na.rm = TRUE),
-    previsoes_validas = sum(!is.na(e))
-  )
-}))
+    modelo = melhor_modelo_nome,
+    horizonte = seq_len(n_teste),
+    observado = as.numeric(serie_teste),
+    previsto = as.numeric(previsao_teste$mean),
+    erro = as.numeric(serie_teste) - as.numeric(previsao_teste$mean)
+  ),
+  "data/processed/sarima_teste_final.csv",
+  row.names = FALSE
+)
 
-comparacao_geral <- comparacao_geral[
-  order(comparacao_geral$RMSE),
-]
-
-print(comparacao_geral, row.names = FALSE)
+autoplot(serie_treino, series = "Treino") +
+  autolayer(serie_teste, series = "Teste") +
+  autolayer(previsao_teste$mean, series = melhor_modelo_nome) +
+  labs(
+    title = paste("SARIMA selecionado:", melhor_modelo_nome),
+    x = "Tempo",
+    y = "Inadimplencia",
+    colour = NULL
+  ) +
+  theme_minimal()
