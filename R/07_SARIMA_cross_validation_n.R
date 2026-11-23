@@ -6,6 +6,9 @@ rm(list = ls())
 
 library(forecast)
 library(ggplot2)
+library(dplyr)
+library(tseries)
+
 
 serie_inadp <- read.csv(
   "data/processed/serie_temporal_inadimplencia_filtered.csv",
@@ -258,6 +261,16 @@ write.csv(
   row.names = FALSE
 )
 
+    forecast::Arima(
+      serie_treino,
+      order = c(3, 2, 1),
+      seasonal = list(order = c(1, 1, 2), period = 3),
+      include.drift = FALSE,
+      method = "ML"
+    )
+
+    previsao <- forecast(modelo, h = n_teste)
+    
 autoplot(serie_treino, series = "Treino") +
   autolayer(serie_teste, series = "Teste") +
   autolayer(previsao_teste$mean, series = melhor_modelo_nome) +
