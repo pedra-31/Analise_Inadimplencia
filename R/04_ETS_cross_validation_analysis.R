@@ -83,11 +83,6 @@ modelos <- list(
   "Holt-Winters amortizado" = list(
     model = "AAA",
     damped = TRUE
-  ),
-
-  "ETS automático" = list(
-    model = NULL,
-    damped = FALSE
   )
 )
 
@@ -100,18 +95,11 @@ criar_funcao_previsao <- function(modelo, damped) {
 
   function(y, h) {
 
-    if (is.null(modelo)) {
-
-      ajuste <- ets(y)
-
-    } else {
-
-      ajuste <- ets(
-        y,
-        model = modelo,
-        damped = damped
-      )
-    }
+    ajuste <- ets(
+      y,
+      model = modelo,
+      damped = damped
+    )
 
     forecast(
       ajuste,

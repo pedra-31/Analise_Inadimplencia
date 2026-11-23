@@ -55,9 +55,9 @@ autoplot(serie_treino, series = "Treino") +
 # ------------------------------------------------------------
 
 
-# Matriz de ordens: d e estimado pela serie; p/q variam de 0 a 10.
-arima_d <- min(forecast::ndiffs(serie_treino), 2L)
-ordens_arima <- expand.grid(p = 0:10, q = 0:10)
+# Matriz de ordens: d e estimado pela serie; p/q variam de 0 a 3.
+arima_d <- min(forecast::ndiffs(serie_treino), 2)
+ordens_arima <- expand.grid(p = 0:3, q = 0:3)
 ordens_arima$nome <- with(
   ordens_arima,
   sprintf("ARIMA(%d,%d,%d)", p, arima_d, q)
@@ -152,7 +152,7 @@ print(resultados_rmse)
 
 # Os melhores modelos da avaliacao inicial seguem para a validacao cruzada.
 arima_shortlist <- ordens_arima[
-  match(head(resultados_rmse$modelo, 5), ordens_arima$nome),
+  match(head(resultados_rmse$modelo, 3), ordens_arima$nome),
   c("nome", "p", "q")
 ]
 names(arima_shortlist)[names(arima_shortlist) == "nome"] <- "modelo"
@@ -269,16 +269,3 @@ shapiro.test(
 # ------------------------------------------------------------
 print(resultados_rmse[1,"AIC"])
 print(resultados_rmse[1,"BIC"])
-
-
-# ------------------------------------------------------------
-# 6. Utilizando a função auto.arima() do forecast para análise
-# ------------------------------------------------------------
-
-modelo_auto <- auto.arima(serie_treino)
-summary(modelo_auto)
-checkresiduals(modelo_auto)
-
-modelo_auto2 <- auto.arima(serie_treino, d = 2)
-summary(modelo_auto2)
-checkresiduals(modelo_auto2)

@@ -27,9 +27,9 @@ if (n_serie < max(8, 2 * series_frequency)) {
   stop("Série curta demais para as análises: ", n_serie, " observações.")
 }
 
-# Reserva 20% para teste final, com limites compatíveis com séries curtas.
-n_teste <- min(max(1L, floor(n_serie * 0.20)), max(1L, n_serie - 2L * series_frequency))
-n_teste_candidatos <- sort(unique(pmax(1L, floor(n_serie * c(0.10, 0.15, 0.20)))))
+# Reserva 15% para teste final, com limites compatíveis com séries curtas.
+n_teste <- min(max(1L, floor(n_serie * 0.15)), max(1L, n_serie - 2L * series_frequency))
+n_teste_candidatos <- sort(unique(pmax(1L, floor(n_serie * c(0.07, 0.11, 0.13, 0.14, 0.15)))))
 n_teste_candidatos <- n_teste_candidatos[
   n_serie - n_teste_candidatos >= max(8L, 2L * series_frequency)
 ]

@@ -47,8 +47,8 @@ autoplot(serie_treino, series = "Treino") +
 # configurada no main.R e d e estimado pela serie.
 sarima_d <- min(forecast::ndiffs(serie_treino), 2L)
 ordens_sarima <- expand.grid(
-  p = 1:2,
-  q = 1:2,
+  p = 0:3,
+  q = 0:3,
   P = 0:2,
   D = 0:1,
   Q = 0:2,
