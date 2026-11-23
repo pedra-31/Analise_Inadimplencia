@@ -7,37 +7,16 @@
 # 0. Preparação
 # ------------------------------------------------------------
 
-rm(list = ls())
-
-library(dplyr)
-library(ggplot2)
-library(forecast)
-library(tseries)
-
-serie_inadp <- read.csv(
-  "data/processed/serie_temporal_inadimplencia_filtered.csv",
-  sep = ",",
-  header = TRUE
-)
-
-# Série mensal, conforme definido na análise inicial (R/01_series_analysis.R).
-ts_serie <- ts(
-  serie_inadp$y,
-  start = c(2011, 3),
-  frequency = 12
-)
+# library(dplyr)
+# library(ggplot2)
+# library(forecast)
+# library(tseries)
 
 # ============================================================
 # 1. SEPARAÇÃO ENTRE TREINO E TESTE
 # ============================================================
 
-# n=40 - SARIMA(1,2,2)(2,2,2)[3] 
-# n=32 - SARIMA(1,2,2)(2,2,2)[3] 
-# n=24 - SARIMA(1,2,2)(0,3,1)[6]
-# n=18 - SARIMA(2,2,1)(1,2,0)[6]
-
-
-n_teste <- 36
+# n_teste é calculado dinamicamente em main.R.
 n_total <- length(ts_serie)
 n_treino <- n_total - n_teste
 
@@ -64,28 +43,28 @@ autoplot(serie_treino, series = "Treino") +
 # 2. BUSCA DE MODELOS SARIMA
 # ============================================================
 
-# Modelo: SARIMA(p, 2, q)(P, D, Q)[s]. Os termos não sazonais p e q,
-# sazonais P, D e Q variam de 0 a 3; os períodos sazonais são 3, 6 e 12.
-# A diferenciação não sazonal d permanece fixa em 2.
+# Modelo: SARIMA(p, d, q)(P, D, Q)[s]. O período sazonal vem da frequência
+# configurada no main.R e d e estimado pela serie.
+sarima_d <- min(forecast::ndiffs(serie_treino), 2L)
 ordens_sarima <- expand.grid(
   p = 1:2,
   q = 1:2,
   P = 0:2,
-  D = 0:2,
+  D = 0:1,
   Q = 0:2,
-  s = c(3, 6)
+  s = frequency(ts_serie)
 )
 
 ordens_sarima$nome <- with(
   ordens_sarima,
-  sprintf("SARIMA(%d,2,%d)(%d,%d,%d)[%d]", p, q, P, D, Q, s)
+  sprintf("SARIMA(%d,%d,%d)(%d,%d,%d)[%d]", p, sarima_d, q, P, D, Q, s)
 )
 
 ajustar_sarima <- function(p, q, P, D, Q, s) {
   tryCatch(
     forecast::Arima(
       serie_treino,
-      order = c(p, 2, q),
+      order = c(p, sarima_d, q),
       seasonal = list(order = c(P, D, Q), period = s),
       include.drift = FALSE,
       method = "ML"
@@ -138,16 +117,46 @@ resultados_rmse <- resultados |>
 
 print(resultados_rmse)
 
+# Os melhores modelos da avaliacao inicial seguem para a validacao cruzada.
+sarima_shortlist <- ordens_sarima[
+  match(head(resultados_rmse$modelo, 3), ordens_sarima$nome),
+]
+sarima_shortlist$d <- sarima_d
+sarima_shortlist$periodo <- sarima_shortlist$s
+sarima_shortlist$modelo <- sarima_shortlist$nome
+
+# Reavalia os candidatos em alguns tamanhos de teste antes da validacao cruzada.
+sarima_resultados_n <- do.call(rbind, lapply(seq_len(nrow(sarima_shortlist)), function(i) {
+  sp <- sarima_shortlist[i, ]
+  do.call(rbind, lapply(n_teste_candidatos, function(n_holdout) {
+    n_fit <- n_total - n_holdout
+    treino_n <- ts_serie[seq_len(n_fit)]
+    teste_n <- ts_serie[(n_fit + 1L):n_total]
+    ajuste_n <- tryCatch(forecast::Arima(
+      treino_n, order = c(sp$p, sp$d, sp$q),
+      seasonal = list(order = c(sp$P, sp$D, sp$Q), period = sp$periodo),
+      include.drift = FALSE, method = "ML"
+    ), error = function(e) NULL)
+    if (is.null(ajuste_n)) return(NULL)
+    previsao_n <- forecast::forecast(ajuste_n, h = n_holdout)
+    data.frame(modelo = sp$modelo, n_teste = n_holdout,
+               RMSE = sqrt(mean((as.numeric(teste_n) - as.numeric(previsao_n$mean))^2)))
+  }))
+}))
+sarima_rank_n <- aggregate(RMSE ~ modelo, sarima_resultados_n, mean)
+sarima_rank_n <- sarima_rank_n[order(sarima_rank_n$RMSE), ]
+sarima_shortlist <- merge(sarima_shortlist, sarima_rank_n, by = "modelo")
+sarima_shortlist <- sarima_shortlist[order(sarima_shortlist$RMSE), ]
+sarima_shortlist <- head(sarima_shortlist, 3L)
+write.csv(sarima_resultados_n, "data/processed/sarima_analise_por_tamanho_teste.csv", row.names = FALSE)
+write.csv(sarima_shortlist, "data/processed/sarima_shortlist.csv", row.names = FALSE)
+
 # ============================================================
 # 4. SELEÇÃO E PREVISÃO DO MELHOR MODELO
 # ============================================================
 
-melhor_nome <- "SARIMA(1,2,2)(2,2,2)[3]"
-melhor_modelo <- Arima(ts_serie, 
-  order = c(1, 2, 2), 
-  seasonal = list(order = c(2, 2, 2), 
-  period = 3)
-)
+melhor_nome <- sarima_shortlist$modelo[1]
+melhor_modelo <- modelos[[melhor_nome]]
 
 previsao_teste <- forecast(melhor_modelo, h = n_teste)
 

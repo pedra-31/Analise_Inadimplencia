@@ -7,31 +7,16 @@
 # 0. Preparação
 # ------------------------------------------------------------
 
-rm(list = ls())
-
-library(dplyr)
-library(ggplot2)
-library(forecast)
-library(tseries)
-
-serie_inadp <- read.csv(
-  "data/processed/serie_temporal_inadimplencia_filtered.csv",
-  sep = ",",
-  header = TRUE
-)
-
-# Criando a série temporal mensal
-ts_serie <- ts(
-  serie_inadp$y,
-  start = c(2011, 3),
-  frequency = 12
-)
+# library(dplyr)
+# library(ggplot2)
+# library(forecast)
+# library(tseries)
 
 # ============================================================
 # 2. SEPARAÇÃO ENTRE TREINO E TESTE
 # ============================================================
 
-n_teste <- 32
+# n_teste é calculado dinamicamente em main.R.
 n_total <- length(ts_serie)
 n_treino <- n_total - n_teste
 
@@ -62,7 +47,7 @@ autoplot(serie_treino, series = "Treino") +
 
 
 # ============================================================
-# 3. MODELAGEM ARIMA COM d = 2
+# 3. MODELAGEM ARIMA
 # ============================================================
 
 # ------------------------------------------------------------
@@ -70,18 +55,19 @@ autoplot(serie_treino, series = "Treino") +
 # ------------------------------------------------------------
 
 
-# Matriz de ordens: d permanece fixo em 2 e p/q variam de 0 a 3.
+# Matriz de ordens: d e estimado pela serie; p/q variam de 0 a 10.
+arima_d <- min(forecast::ndiffs(serie_treino), 2L)
 ordens_arima <- expand.grid(p = 0:10, q = 0:10)
 ordens_arima$nome <- with(
   ordens_arima,
-  sprintf("ARIMA(%d,2,%d)", p, q)
+  sprintf("ARIMA(%d,%d,%d)", p, arima_d, q)
 )
 
 ajustar_arima <- function(p, q) {
   tryCatch(
     forecast::Arima(
       serie_treino,
-      order = c(p, 2, q),
+      order = c(p, arima_d, q),
       include.drift = FALSE,
       method = "ML"
     ),
@@ -164,13 +150,45 @@ resultados_rmse <- resultados |>
 
 print(resultados_rmse)
 
+# Os melhores modelos da avaliacao inicial seguem para a validacao cruzada.
+arima_shortlist <- ordens_arima[
+  match(head(resultados_rmse$modelo, 5), ordens_arima$nome),
+  c("nome", "p", "q")
+]
+names(arima_shortlist)[names(arima_shortlist) == "nome"] <- "modelo"
+arima_shortlist$d <- arima_d
+
+# Reavalia os candidatos em alguns tamanhos de teste antes da validacao cruzada.
+arima_resultados_n <- do.call(rbind, lapply(seq_len(nrow(arima_shortlist)), function(i) {
+  sp <- arima_shortlist[i, ]
+  do.call(rbind, lapply(n_teste_candidatos, function(n_holdout) {
+    n_fit <- n_total - n_holdout
+    treino_n <- ts_serie[seq_len(n_fit)]
+    teste_n <- ts_serie[(n_fit + 1L):n_total]
+    ajuste_n <- tryCatch(forecast::Arima(treino_n, order = c(sp$p, sp$d, sp$q),
+                                         include.drift = FALSE, method = "ML"),
+                         error = function(e) NULL)
+    if (is.null(ajuste_n)) return(NULL)
+    previsao_n <- forecast::forecast(ajuste_n, h = n_holdout)
+    data.frame(modelo = sp$modelo, n_teste = n_holdout,
+               RMSE = sqrt(mean((as.numeric(teste_n) - as.numeric(previsao_n$mean))^2)))
+  }))
+}))
+arima_rank_n <- aggregate(RMSE ~ modelo, arima_resultados_n, mean)
+arima_rank_n <- arima_rank_n[order(arima_rank_n$RMSE), ]
+arima_shortlist <- merge(arima_shortlist, arima_rank_n, by = "modelo")
+arima_shortlist <- arima_shortlist[order(arima_shortlist$RMSE), ]
+arima_shortlist <- head(arima_shortlist, 3L)
+write.csv(arima_resultados_n, "data/processed/arima_analise_por_tamanho_teste.csv", row.names = FALSE)
+write.csv(arima_shortlist, "data/processed/arima_shortlist.csv", row.names = FALSE)
+
 
 # ============================================================
 # 4. SELEÇÃO DO MODELO
 # ============================================================
 
-# Considerei que o melhor modelo foi o ARIMA(1,2,2) -> 2º menor RMSE, Simples e AIC/BIC pequenos
-melhor_nome <- "ARIMA(1,2,2)"
+# Selecao inicial pelo menor RMSE no periodo de teste.
+melhor_nome <- arima_shortlist$modelo[1]
 
 melhor_modelo <- modelos[[melhor_nome]]
 

@@ -7,27 +7,12 @@
 # 0. Preparação
 # ------------------------------------------------------------
 
-rm(list = ls())
-
-library(dplyr)
-library(ggplot2)
-library(forecast)
-
-serie_inadp <- read.csv(
-  "data/processed/serie_temporal_inadimplencia_filtered.csv",
-  sep = ",",
-  header = TRUE
-)
+# library(dplyr)
+# library(ggplot2)
+# library(forecast)
 
 # Criando variável de tempo
 serie_inadp$t <- 1:nrow(serie_inadp)
-
-# Criando a série temporal mensal
-ts_serie <- ts(
-  serie_inadp$y,
-  start = c(2011, 3),
-  frequency = 12
-)
 
 # ============================================================
 # 2. MODELAGEM: REGRESSÃO LINEAR

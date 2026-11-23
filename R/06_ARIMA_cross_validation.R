@@ -1,28 +1,18 @@
 # ============================================================
-# VALIDACAO CRUZADA TEMPORAL DE MODELOS SARIMA
+# VALIDACAO CRUZADA TEMPORAL DE MODELOS ARIMA
 # ============================================================
 
-rm(list = ls())
+# library(forecast)
+# library(ggplot2)
+# library(dplyr)
+# library(tseries)
 
-library(forecast)
-library(ggplot2)
-library(dplyr)
-library(tseries)
-
-
-serie_inadp <- read.csv(
-  "data/processed/serie_temporal_inadimplencia_filtered.csv",
-  sep = ",",
-  header = TRUE
-)
-
-ts_serie <- ts(serie_inadp$y, start = c(2011, 3), frequency = 12)
 
 # ------------------------------------------------------------
 # 1. Separacao entre treino e teste final
 # ------------------------------------------------------------
 
-n_teste <- 12
+# n_teste, h_cv e initial sao calculados dinamicamente em main.R.
 n <- length(ts_serie)
 
 if (n <= n_teste) {
@@ -37,46 +27,25 @@ serie_teste <- window(ts_serie, start = time(ts_serie)[n - n_teste + 1])
 # ------------------------------------------------------------
 
 # As metricas serao calculadas em cada passo de previsao, de 1 ate h_cv.
-h_cv <- 6
-initial <- 60
-
 if (length(serie_treino) < initial + h_cv) {
   stop("Serie de treino curta demais para initial e h_cv escolhidos.")
 }
 
 # ------------------------------------------------------------
-# 3. Modelos SARIMA candidatos
+# 3. Modelos ARIMA candidatos
 # ------------------------------------------------------------
 
-# A primeira especificacao enviada apareceu duplicada; e incluida uma vez.
-modelos <- data.frame(
-  nome = c(
-    "SARIMA(1,2,2)(2,2,2)[3]",
-    "SARIMA(1,2,2)(0,3,1)[6]",
-    "SARIMA(2,2,1)(1,2,0)[6]",
-    "SARIMA(2,2,0)(0,2,2)[3]",
-    "SARIMA(2,2,3)(0,2,1)[3]",
-    "SARIMA(3,2,1)(1,1,2)[3]",
-    "SARIMA(2,2,2)(0,2,1)[3]"
-  ),
-  p = c(1, 1, 2, 2, 2, 3, 2),
-  d = c(2, 2, 2, 2, 2, 2, 2),
-  q = c(2, 2, 1, 0, 3, 1, 2),
-  P = c(2, 0, 1, 0, 0, 1, 0),
-  D = c(2, 3, 2, 2, 2, 1, 2),
-  Q = c(2, 1, 0, 2, 1, 2, 1),
-  periodo = c(3, 6, 6, 3, 3, 3, 3),
-  stringsAsFactors = FALSE
-)
+# Usa somente os melhores modelos encontrados em R/05_ARIMA_analysis.R.
+if (!exists("arima_shortlist") || !nrow(arima_shortlist)) {
+  stop("Execute R/05_ARIMA_analysis.R antes da validacao cruzada.")
+}
+modelos <- arima_shortlist[, c("modelo", "p", "d", "q")]
+names(modelos)[names(modelos) == "modelo"] <- "nome"
 
-ajustar_sarima <- function(y, especificacao) {
+ajustar_arima <- function(y, especificacao) {
   forecast::Arima(
     y,
     order = c(especificacao$p, especificacao$d, especificacao$q),
-    seasonal = list(
-      order = c(especificacao$P, especificacao$D, especificacao$Q),
-      period = especificacao$periodo
-    ),
     include.drift = FALSE,
     method = "ML"
   )
@@ -87,8 +56,9 @@ ajustar_sarima <- function(y, especificacao) {
 # ------------------------------------------------------------
 
 # Treino expansivo: em cada origem entram apenas dados anteriores.
-# Todas as origens possiveis sao avaliadas dentro da serie de treino.
-origens <- seq.int(initial, length(serie_treino) - h_cv)
+# As origens sao espaçadas para limitar o custo dos ajustes.
+origens <- unique(round(seq(initial, length(serie_treino) - h_cv,
+                            length.out = n_cv_origins)))
 
 erros_cv <- array(
   NA_real_,
@@ -112,7 +82,7 @@ for (m in seq_len(nrow(modelos))) {
     )
 
     ajuste <- tryCatch(
-      ajustar_sarima(treino_origem, modelos[m, ]),
+      ajustar_arima(treino_origem, modelos[m, ]),
       error = function(e) {
         message(
           "Falha em ", modelos$nome[m], " na origem ", fim_treino,
@@ -197,12 +167,12 @@ print(resumo_cv, row.names = FALSE)
 
 write.csv(
   resultados_horizonte,
-  "data/processed/sarima_cv_por_horizonte.csv",
+  "data/processed/arima_cv_por_horizonte.csv",
   row.names = FALSE
 )
 write.csv(
   resumo_cv,
-  "data/processed/sarima_cv_resumo.csv",
+  "data/processed/arima_cv_resumo.csv",
   row.names = FALSE
 )
 
@@ -214,7 +184,7 @@ grafico_cv <- ggplot(
   geom_point(size = 2) +
   scale_x_continuous(breaks = seq_len(h_cv)) +
   labs(
-    title = "SARIMA: RMSE da validacao cruzada por horizonte",
+    title = "ARIMA: RMSE da validacao cruzada por horizonte",
     x = "Horizonte de previsao (passos a frente)",
     y = "RMSE entre origens",
     color = "Modelo"
@@ -236,7 +206,7 @@ melhor_indice <- match(melhor_modelo_nome, modelos$nome)
 melhor_especificacao <- modelos[melhor_indice, ]
 
 ajuste_teste <- tryCatch(
-  ajustar_sarima(serie_treino, melhor_especificacao),
+  ajustar_arima(serie_treino, melhor_especificacao),
   error = function(e) {
     stop("Falha ao ajustar o modelo selecionado para o teste: ",
          conditionMessage(e))
@@ -257,25 +227,15 @@ write.csv(
     previsto = as.numeric(previsao_teste$mean),
     erro = as.numeric(serie_teste) - as.numeric(previsao_teste$mean)
   ),
-  "data/processed/sarima_teste_final.csv",
+  "data/processed/arima_teste_final.csv",
   row.names = FALSE
 )
 
-    forecast::Arima(
-      serie_treino,
-      order = c(3, 2, 1),
-      seasonal = list(order = c(1, 1, 2), period = 3),
-      include.drift = FALSE,
-      method = "ML"
-    )
-
-    previsao <- forecast(modelo, h = n_teste)
-    
 autoplot(serie_treino, series = "Treino") +
   autolayer(serie_teste, series = "Teste") +
   autolayer(previsao_teste$mean, series = melhor_modelo_nome) +
   labs(
-    title = paste("SARIMA selecionado:", melhor_modelo_nome),
+    title = paste("ARIMA selecionado:", melhor_modelo_nome),
     x = "Tempo",
     y = "Inadimplencia",
     colour = NULL

@@ -7,25 +7,9 @@
 # 0. Preparação
 # ------------------------------------------------------------
 
-rm(list = ls())
-
-library(dplyr)
-library(forecast)
-library(ggplot2)
-
-# Carregando os dados
-serie_inadp <- read.csv(
-  "data/processed/serie_temporal_inadimplencia_filtered.csv",
-  sep = ",",
-  header = TRUE
-)
-
-# Criando a série temporal mensal
-ts_serie <- ts(
-  serie_inadp$y,
-  start = c(2011, 3),
-  frequency = 12
-)
+# library(dplyr)
+# library(forecast)
+# library(ggplot2)
 
 # ============================================================
 # 2. MODELAGEM: SUAVIZAÇÃO
@@ -35,10 +19,7 @@ ts_serie <- ts(
 # 2.1 Separação em treino e teste
 # ------------------------------------------------------------
 
-# Últimas 12 observações serão utilizadas para a fase de testes
-# n(s) de interesse: 32; 24; 16; 12.
-
-n_teste <- 12
+# O tamanho do teste final é calculado em main.R a partir da série.
 
 n <- length(ts_serie)
 

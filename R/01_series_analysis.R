@@ -7,28 +7,10 @@
 # 0. Preparação
 # ------------------------------------------------------------
 
-rm(list = ls())
-
-library(dplyr)
-library(forecast)
-library(ggplot2)
-library(forecast)
-library(tseries)
-
-# Carregando os dados
-serie_inadp <- read.csv(
-  "data/processed/serie_temporal_inadimplencia_filtered.csv",
-  sep = ",",
-  header = TRUE
-)
-
-# Criando a série temporal mensal
-ts_serie <- ts(
-  serie_inadp$y,
-  start = c(2011, 3),
-  frequency = 12
-)
-
+# library(dplyr)
+# library(forecast)
+# library(ggplot2)
+# library(tseries)
 
 # ============================================================
 # 1. ANÁLISE DESCRITIVA DA SÉRIE

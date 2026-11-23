@@ -7,28 +7,12 @@
 # 0. Preparação
 # ------------------------------------------------------------
 
-rm(list = ls())
-
-library(forecast)
-library(ggplot2)
+# library(forecast)
+# library(ggplot2)
 
 
-serie_inadp <- read.csv(
-  "data/processed/serie_temporal_inadimplencia_filtered.csv",
-  sep = ",",
-  header = TRUE
-)
-
-ts_serie <- ts(
-  serie_inadp$y,
-  start = c(2011, 3),
-  frequency = 12
-)
-
-# As últimas 12 observações ficam completamente fora
+# As últimas n_teste observações ficam completamente fora
 # da escolha do modelo.
-
-n_teste <- 12
 
 n <- length(ts_serie)
 
@@ -60,15 +44,14 @@ autoplot(serie_treino, series = "Treino") +
 # 4. VALIDAÇÃO CRUZADA TEMPORAL
 # ============================================================
 
-# Horizonte de previsão:
-# 6 meses = previsão de um semestre à frente.
+# Horizonte de previsão definido dinamicamente em main.R.
 
-h_cv <- 6
+# h_cv é definido dinamicamente em main.R.
 
 # Quantidade mínima de observações antes da primeira
 # previsão da validação cruzada.
 
-initial <- 60
+# initial é definido dinamicamente em main.R.
 
 
 # ------------------------------------------------------------
