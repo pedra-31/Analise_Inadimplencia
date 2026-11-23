@@ -35,7 +35,7 @@ autoplot(serie_treino, series = "Treino") +
   labs(
     title = "1.1 - Separação entre treino e teste",
     x = "Ano",
-    y = "Inadimplência"
+    y = series_value_label
   ) +
   theme_minimal()
 
@@ -148,8 +148,8 @@ sarima_rank_n <- sarima_rank_n[order(sarima_rank_n$RMSE), ]
 sarima_shortlist <- merge(sarima_shortlist, sarima_rank_n, by = "modelo")
 sarima_shortlist <- sarima_shortlist[order(sarima_shortlist$RMSE), ]
 sarima_shortlist <- head(sarima_shortlist, 3L)
-write.csv(sarima_resultados_n, "data/processed/sarima_analise_por_tamanho_teste.csv", row.names = FALSE)
-write.csv(sarima_shortlist, "data/processed/sarima_shortlist.csv", row.names = FALSE)
+write.csv(sarima_resultados_n, series_output_path("sarima_analise_por_tamanho_teste.csv"), row.names = FALSE)
+write.csv(sarima_shortlist, series_output_path("sarima_shortlist.csv"), row.names = FALSE)
 
 # ============================================================
 # 4. SELEÇÃO E PREVISÃO DO MELHOR MODELO
@@ -173,7 +173,7 @@ autoplot(previsao_teste) +
   labs(
     title = paste("4.1 - Previsões no teste:", melhor_nome),
     x = "Ano",
-    y = "Inadimplência"
+    y = series_value_label
   ) +
   theme_minimal()
 
@@ -246,7 +246,7 @@ autoplot(
       melhor_nome
     ),
     x = "Tempo",
-    y = "Inadimplência",
+    y = series_value_label,
     colour = NULL,
     fill = NULL
   ) +

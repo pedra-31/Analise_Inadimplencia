@@ -34,7 +34,7 @@ autoplot(serie_treino, series = "Treino") +
   labs(
     title = "3.1 - Separação entre treino e teste final",
     x = "Tempo",
-    y = "Inadimplência",
+    y = series_value_label,
     colour = NULL
   ) +
   theme_minimal()
@@ -261,7 +261,7 @@ resumo_ets
 
 write.csv(
   resumo_ets,
-  file = "data/processed/resumo_ets.csv",
+  file = series_output_path("resumo_ets.csv"),
   row.names = FALSE
 )
 
@@ -404,7 +404,7 @@ autoplot(
       melhor_modelo_nome
     ),
     x = "Tempo",
-    y = "Inadimplência",
+    y = series_value_label,
     colour = NULL
   ) +
   theme_minimal()
@@ -530,7 +530,7 @@ autoplot(
       melhor_modelo_nome
     ),
     x = "Tempo",
-    y = "Inadimplência",
+    y = series_value_label,
     colour = NULL,
     fill = NULL
   ) +

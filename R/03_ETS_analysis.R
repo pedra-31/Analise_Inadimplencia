@@ -45,7 +45,7 @@ autoplot(ts_serie, series = "Série") +
   labs(
     title = "2.1 - Separação entre treino e teste",
     x = "Tempo",
-    y = "Inadimplência",
+    y = series_value_label,
     colour = NULL
   ) +
   theme_minimal()
@@ -168,7 +168,7 @@ grafico <- autoplot(serie_treino, series = "Treino") +
   labs(
     title = "2.5 - Previsões dos modelos na amostra de teste",
     x = "Tempo",
-    y = "Inadimplência",
+    y = series_value_label,
     colour = NULL
   ) +
   scale_colour_discrete(
@@ -390,7 +390,7 @@ autoplot(previsao_futura) +
       melhor_modelo_nome
     ),
     x = "Tempo",
-    y = "Inadimplência",
+    y = series_value_label,
     colour = NULL,
     fill = NULL
   ) +

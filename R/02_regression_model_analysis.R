@@ -52,9 +52,9 @@ ggplot(serie_inadp, aes(x = t, y = y)) +
   ) +
 
   labs(
-    title = "2.3 - Inadimplência e tendência linear",
+    title = paste("2.3 -", series_name, "e tendência linear"),
     x = "Tempo",
-    y = "Inadimplência"
+    y = series_value_label
   ) +
 
   theme_minimal()

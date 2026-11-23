@@ -41,7 +41,7 @@ autoplot(serie_treino, series = "Treino") +
   labs(
     title = "2.1 - Separação entre treino e teste",
     x = "Ano",
-    y = "Inadimplência"
+    y = series_value_label
   ) +
   theme_minimal()
 
@@ -179,8 +179,8 @@ arima_rank_n <- arima_rank_n[order(arima_rank_n$RMSE), ]
 arima_shortlist <- merge(arima_shortlist, arima_rank_n, by = "modelo")
 arima_shortlist <- arima_shortlist[order(arima_shortlist$RMSE), ]
 arima_shortlist <- head(arima_shortlist, 3L)
-write.csv(arima_resultados_n, "data/processed/arima_analise_por_tamanho_teste.csv", row.names = FALSE)
-write.csv(arima_shortlist, "data/processed/arima_shortlist.csv", row.names = FALSE)
+write.csv(arima_resultados_n, series_output_path("arima_analise_por_tamanho_teste.csv"), row.names = FALSE)
+write.csv(arima_shortlist, series_output_path("arima_shortlist.csv"), row.names = FALSE)
 
 
 # ============================================================
@@ -218,7 +218,7 @@ autoplot(previsao_teste) +
       melhor_nome
     ),
     x = "Ano",
-    y = "Inadimplência"
+    y = series_value_label
   ) +
   theme_minimal()
 

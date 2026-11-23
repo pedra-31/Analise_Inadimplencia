@@ -171,12 +171,12 @@ print(resumo_cv, row.names = FALSE)
 
 write.csv(
   resultados_horizonte,
-  "data/processed/sarima_cv_por_horizonte.csv",
+  series_output_path("sarima_cv_por_horizonte.csv"),
   row.names = FALSE
 )
 write.csv(
   resumo_cv,
-  "data/processed/sarima_cv_resumo.csv",
+  series_output_path("sarima_cv_resumo.csv"),
   row.names = FALSE
 )
 
@@ -231,7 +231,7 @@ write.csv(
     previsto = as.numeric(previsao_teste$mean),
     erro = as.numeric(serie_teste) - as.numeric(previsao_teste$mean)
   ),
-  "data/processed/sarima_teste_final.csv",
+  series_output_path("sarima_teste_final.csv"),
   row.names = FALSE
 )
 
@@ -241,7 +241,7 @@ autoplot(serie_treino, series = "Treino") +
   labs(
     title = paste("SARIMA selecionado:", melhor_modelo_nome),
     x = "Tempo",
-    y = "Inadimplencia",
+    y = series_value_label,
     colour = NULL
   ) +
   theme_minimal()

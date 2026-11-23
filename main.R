@@ -9,6 +9,16 @@ input_file <- "data/processed/serie_temporal_inadimplencia_filtered.csv"
 value_column <- "y"
 series_start <- c(2011, 3) # c(ano, período dentro do ano)
 series_frequency <- 12
+series_name <- "Inadimplência"
+series_value_label <- "Valor"
+series_file_prefix <- tolower(gsub(
+  "_+$", "",
+  gsub("^_+", "", gsub("[^[:alnum:]]+", "_",
+                       iconv(series_name, to = "ASCII//TRANSLIT")))
+))
+series_output_path <- function(file_name) {
+  file.path("data/processed", paste0(series_file_prefix, "_", file_name))
+}
 
 if (!file.exists(input_file)) {
   stop("Arquivo tratado não encontrado: ", input_file,

@@ -22,9 +22,9 @@
 
 autoplot(ts_serie) +
   labs(
-    title = "1.1 - Inadimplência no Brasil",
+    title = paste("1.1 -", series_name),
     x = "Tempo",
-    y = "Percentual de inadimplência"
+    y = series_value_label
   ) +
   theme_minimal()
 
@@ -58,8 +58,8 @@ ggplot(
 ) +
   geom_histogram(bins = 25) +
   labs(
-    title = "1.3 - Distribuição da inadimplência",
-    x = "Inadimplência",
+    title = paste("1.3 - Distribuição:", series_name),
+    x = series_value_label,
     y = "Frequência"
   ) +
   theme_minimal()
@@ -75,9 +75,9 @@ ggseasonplot(
   year.labels.left = TRUE
 ) +
   labs(
-    title = "1.4 - Comportamento sazonal da inadimplência",
+    title = paste("1.4 - Comportamento sazonal:", series_name),
     x = "Mês",
-    y = "Inadimplência"
+    y = series_value_label
   ) +
   theme_minimal()
 
@@ -130,9 +130,9 @@ ts_diff1 <- diff(ts_serie, differences = 1)
 
 autoplot(ts_diff1) +
   labs(
-    title = "1.8.1 - Série diferenciada, differences = 1",
+    title = paste("1.8.1 -", series_name, "diferenciada, d = 1"),
     x = "Tempo",
-    y = "Percentual de inadimplência"
+    y = series_value_label
   ) +
   theme_minimal()
 
@@ -160,9 +160,9 @@ ts_diff2 <- diff(ts_serie, differences = 2)
 
 autoplot(ts_diff2) +
   labs(
-    title = "1.8.4 - Série diferenciada, differences = 2",
+    title = paste("1.8.4 -", series_name, "diferenciada, d = 2"),
     x = "Tempo",
-    y = "Percentual de inadimplência"
+    y = series_value_label
   ) +
   theme_minimal()
 
