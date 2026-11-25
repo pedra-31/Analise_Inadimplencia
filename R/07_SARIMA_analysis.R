@@ -43,15 +43,15 @@ autoplot(serie_treino, series = "Treino") +
 # 2. BUSCA DE MODELOS SARIMA
 # ============================================================
 
-# Modelo: SARIMA(p, d, q)(P, D, Q)[s]. O período sazonal vem da frequência
-# configurada no main.R e d e estimado pela serie.
-sarima_d <- min(forecast::ndiffs(serie_treino), 2L)
+# Modelo: SARIMA(p, d, q)(P, D, Q)[s]. d vem da configuracao no main.R;
+# o periodo sazonal vem da frequencia da serie.
+sarima_d <- nonseasonal_differencing
 ordens_sarima <- expand.grid(
-  p = 0:3,
-  q = 0:3,
-  P = 0:2,
+  p = 0:2,
+  q = 0:2,
+  P = 0:1,
   D = 0:1,
-  Q = 0:2,
+  Q = 0:1,
   s = frequency(ts_serie)
 )
 
@@ -117,9 +117,12 @@ resultados_rmse <- resultados |>
 
 print(resultados_rmse)
 
+resultados_aic <- resultados |>
+  arrange(AIC)
+
 # Os melhores modelos da avaliacao inicial seguem para a validacao cruzada.
 sarima_shortlist <- ordens_sarima[
-  match(head(resultados_rmse$modelo, 3), ordens_sarima$nome),
+  match(head(resultados_aic$modelo, 8), ordens_sarima$nome),
 ]
 sarima_shortlist$d <- sarima_d
 sarima_shortlist$periodo <- sarima_shortlist$s
@@ -129,9 +132,9 @@ sarima_shortlist$modelo <- sarima_shortlist$nome
 sarima_resultados_n <- do.call(rbind, lapply(seq_len(nrow(sarima_shortlist)), function(i) {
   sp <- sarima_shortlist[i, ]
   do.call(rbind, lapply(n_teste_candidatos, function(n_holdout) {
-    n_fit <- n_total - n_holdout
-    treino_n <- ts_serie[seq_len(n_fit)]
-    teste_n <- ts_serie[(n_fit + 1L):n_total]
+    n_fit <- n_treino - n_holdout
+    treino_n <- serie_treino[seq_len(n_fit)]
+    teste_n <- serie_treino[(n_fit + 1L):n_treino]
     ajuste_n <- tryCatch(forecast::Arima(
       treino_n, order = c(sp$p, sp$d, sp$q),
       seasonal = list(order = c(sp$P, sp$D, sp$Q), period = sp$periodo),

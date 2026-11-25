@@ -11,6 +11,7 @@ series_start <- c(2011, 3) # c(ano, período dentro do ano)
 series_frequency <- 12
 series_name <- "Inadimplência"
 series_value_label <- "Valor"
+nonseasonal_differencing <- 2L
 series_file_prefix <- tolower(gsub(
   "_+$", "",
   gsub("^_+", "", gsub("[^[:alnum:]]+", "_",
@@ -38,13 +39,20 @@ if (n_serie < max(8, 2 * series_frequency)) {
 }
 
 # Reserva 15% para teste final, com limites compatíveis com séries curtas.
-n_teste <- min(max(1L, floor(n_serie * 0.15)), max(1L, n_serie - 2L * series_frequency))
-n_teste_candidatos <- sort(unique(pmax(1L, floor(n_serie * c(0.07, 0.11, 0.13, 0.14, 0.15)))))
-n_teste_candidatos <- n_teste_candidatos[
-  n_serie - n_teste_candidatos >= max(8L, 2L * series_frequency)
-]
+n_teste <- min(max(1L, floor(n_serie * 0.25)), max(1L, n_serie - 2L * series_frequency))
 n_treino <- n_serie - n_teste
-h_cv <- min(6L, n_teste)
+
+#teste_candidatos define a porcentagem reservada para validação em cada corte interno. 
+#Então, quanto menor a porcentagem de teste, mais dados sobram para treinar:
+#- 20% para teste → 80% para treino
+#- 50% para teste → 50% para treino
+#- 80% para teste → 20% para treino
+
+n_teste_candidatos <- sort(unique(pmax(1L, floor(n_treino * c(0.10, 0.20, 0.40)))))
+n_teste_candidatos <- n_teste_candidatos[
+  n_treino - n_teste_candidatos >= max(8L, 2L * series_frequency)
+]
+h_cv <- n_teste
 initial_cv <- min(max(2L * series_frequency, floor(n_treino * 0.60)), n_treino - h_cv)
 initial <- initial_cv
 n_cv_origins <- min(8L, max(1L, n_treino - initial_cv - h_cv + 1L))

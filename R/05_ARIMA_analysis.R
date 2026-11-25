@@ -55,8 +55,9 @@ autoplot(serie_treino, series = "Treino") +
 # ------------------------------------------------------------
 
 
-# Matriz de ordens: d e estimado pela serie; p/q variam de 0 a 3.
-arima_d <- min(forecast::ndiffs(serie_treino), 2)
+# d vem da configuração no main.R, baseada nos testes de estacionariedade.
+# p/q variam de 0 a 3.
+arima_d <- nonseasonal_differencing
 ordens_arima <- expand.grid(p = 0:3, q = 0:3)
 ordens_arima$nome <- with(
   ordens_arima,
@@ -152,7 +153,7 @@ print(resultados_rmse)
 
 # Os melhores modelos da avaliacao inicial seguem para a validacao cruzada.
 arima_shortlist <- ordens_arima[
-  match(head(resultados_rmse$modelo, 3), ordens_arima$nome),
+  match(head(resultados_aic$modelo, 8), ordens_arima$nome),
   c("nome", "p", "q")
 ]
 names(arima_shortlist)[names(arima_shortlist) == "nome"] <- "modelo"
@@ -162,9 +163,9 @@ arima_shortlist$d <- arima_d
 arima_resultados_n <- do.call(rbind, lapply(seq_len(nrow(arima_shortlist)), function(i) {
   sp <- arima_shortlist[i, ]
   do.call(rbind, lapply(n_teste_candidatos, function(n_holdout) {
-    n_fit <- n_total - n_holdout
-    treino_n <- ts_serie[seq_len(n_fit)]
-    teste_n <- ts_serie[(n_fit + 1L):n_total]
+    n_fit <- n_treino - n_holdout
+    treino_n <- serie_treino[seq_len(n_fit)]
+    teste_n <- serie_treino[(n_fit + 1L):n_treino]
     ajuste_n <- tryCatch(forecast::Arima(treino_n, order = c(sp$p, sp$d, sp$q),
                                          include.drift = FALSE, method = "ML"),
                          error = function(e) NULL)
