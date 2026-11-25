@@ -1,5 +1,5 @@
-# Ponto de entrada: informe abaixo o CSV tratado, a coluna da série e
-# a data inicial/frequência. Os tamanhos de teste são calculados pela série.
+# Ponto de entrada: informe o CSV tratado e as colunas de data e valor.
+# A frequencia e inferida pelos intervalos das datas; os tamanhos variam com a serie.
 library(dplyr)
 library(forecast)
 library(ggplot2)
@@ -11,7 +11,10 @@ series_start <- c(2011, 3) # c(ano, período dentro do ano)
 series_frequency <- 12
 series_name <- "Inadimplência"
 series_value_label <- "Valor"
-nonseasonal_differencing <- 2L
+n_modelos_pre_cv <- 12L
+n_modelos_cv <- 8L
+nonseasonal_differencing <- 2
+cv_horizon <- 24
 series_file_prefix <- tolower(gsub(
   "_+$", "",
   gsub("^_+", "", gsub("[^[:alnum:]]+", "_",
@@ -29,6 +32,7 @@ if (!file.exists(input_file)) {
 serie_dados <- read.csv(input_file, stringsAsFactors = FALSE)
 if (!value_column %in% names(serie_dados)) stop("Coluna não encontrada: ", value_column)
 if (anyNA(serie_dados[[value_column]])) stop("A série contém valores ausentes.")
+
 ts_serie <- ts(as.numeric(serie_dados[[value_column]]), start = series_start,
                frequency = series_frequency)
 serie_inadp <- serie_dados
@@ -39,7 +43,7 @@ if (n_serie < max(8, 2 * series_frequency)) {
 }
 
 # Reserva 15% para teste final, com limites compatíveis com séries curtas.
-n_teste <- min(max(1L, floor(n_serie * 0.25)), max(1L, n_serie - 2L * series_frequency))
+n_teste <- min(max(1L, floor(n_serie * 0.19)), max(1L, n_serie - 2L * series_frequency))
 n_treino <- n_serie - n_teste
 
 #teste_candidatos define a porcentagem reservada para validação em cada corte interno. 
@@ -48,11 +52,11 @@ n_treino <- n_serie - n_teste
 #- 50% para teste → 50% para treino
 #- 80% para teste → 20% para treino
 
-n_teste_candidatos <- sort(unique(pmax(1L, floor(n_treino * c(0.10, 0.20, 0.40)))))
+n_teste_candidatos <- sort(unique(pmax(1L, floor(n_treino * c(0.10, 0.20, 0.30)))))
 n_teste_candidatos <- n_teste_candidatos[
   n_treino - n_teste_candidatos >= max(8L, 2L * series_frequency)
 ]
-h_cv <- n_teste
+h_cv <- min(cv_horizon, n_treino)
 initial_cv <- min(max(2L * series_frequency, floor(n_treino * 0.60)), n_treino - h_cv)
 initial <- initial_cv
 n_cv_origins <- min(8L, max(1L, n_treino - initial_cv - h_cv + 1L))

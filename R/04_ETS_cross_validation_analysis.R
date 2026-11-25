@@ -4,7 +4,7 @@
 # ============================================================
 
 # ------------------------------------------------------------
-# 0. Preparação
+# 4.1. Preparação
 # ------------------------------------------------------------
 
 # library(forecast)
@@ -29,19 +29,8 @@ serie_teste <- window(
 
 # Visualização da separação
 
-autoplot(serie_treino, series = "Treino") +
-  autolayer(serie_teste, series = "Teste") +
-  labs(
-    title = "3.1 - Separação entre treino e teste final",
-    x = "Tempo",
-    y = series_value_label,
-    colour = NULL
-  ) +
-  theme_minimal()
-
-
 # ============================================================
-# 4. VALIDAÇÃO CRUZADA TEMPORAL
+# 4.2. VALIDAÇÃO CRUZADA TEMPORAL
 # ============================================================
 
 # Horizonte de previsão definido dinamicamente em main.R.
@@ -55,7 +44,7 @@ autoplot(serie_treino, series = "Treino") +
 
 
 # ------------------------------------------------------------
-# 4.1 Definição dos modelos
+# 4.3 Definição dos modelos
 # ------------------------------------------------------------
 
 modelos <- list(
@@ -88,7 +77,7 @@ modelos <- list(
 
 
 # ------------------------------------------------------------
-# 4.2 Função para gerar previsões
+# 4.4 Função para gerar previsões
 # ------------------------------------------------------------
 
 criar_funcao_previsao <- function(modelo, damped) {
@@ -124,7 +113,7 @@ funcoes_previsao <- lapply(
 
 
 # ------------------------------------------------------------
-# 4.3 Execução da validação cruzada
+# 4.5 Execução da validação cruzada
 # ------------------------------------------------------------
 
 erros_cv <- lapply(
@@ -142,11 +131,11 @@ erros_cv <- lapply(
 
 
 # ============================================================
-# 5. AVALIAÇÃO DA VALIDAÇÃO CRUZADA
+# 4.6. AVALIAÇÃO DA VALIDAÇÃO CRUZADA
 # ============================================================
 
 # ------------------------------------------------------------
-# 5.1 Funções para cálculo das métricas
+# 4.7 Funções para cálculo das métricas
 # ------------------------------------------------------------
 
 calcular_rmse <- function(x) {
@@ -170,7 +159,7 @@ calcular_mae <- function(x) {
 
 
 # ------------------------------------------------------------
-# 5.2 Tabela geral dos modelos
+# 4.8 Tabela geral dos modelos
 # ------------------------------------------------------------
 
 resultados_cv <- data.frame(
@@ -195,7 +184,7 @@ resultados_cv
 
 
 # ------------------------------------------------------------
-# 5.3 Variabilidade do erro entre origens da validação
+# 4.9 Variabilidade do erro entre origens da validação
 # ------------------------------------------------------------
 
 # O RMSE global mistura erros de várias origens de previsão.
@@ -289,7 +278,7 @@ frequencia_vitorias
 
 
 # ------------------------------------------------------------
-# 5.3 Erro por horizonte de previsão
+# 4.10 Erro por horizonte de previsão
 # ------------------------------------------------------------
 
 rmse_horizonte <- lapply(
@@ -338,8 +327,9 @@ ggplot(
   geom_line(linewidth = 0.8) +
   geom_point() +
   labs(
-    title = "5.1 - RMSE por horizonte de previsão",
-    x = "Horizonte de previsão (meses)",
+    title = paste("04 | ETS — CV rolling-origin:", series_name),
+    subtitle = paste("Horizonte:", h_cv, "| Origens:", nrow(rmse_por_origem)),
+    x = "Horizonte de previsão (passos)",
     y = "RMSE",
     linetype = NULL
   ) +
@@ -347,7 +337,7 @@ ggplot(
 
 
 # ------------------------------------------------------------
-# 5.4 Escolha do melhor modelo
+# 4.11 Escolha do melhor modelo
 # ------------------------------------------------------------
 
 melhor_modelo_nome <- resultados_cv$Modelo[1]
@@ -356,7 +346,7 @@ melhor_modelo_nome
 
 
 # ------------------------------------------------------------
-# 5.5 Teste do modelo
+# 4.12 Teste do modelo
 # ------------------------------------------------------------
 
 # O modelo foi escolhido usando apenas a validação cruzada.
@@ -371,7 +361,7 @@ previsao_teste <- melhor_funcao(
 
 
 # ------------------------------------------------------------
-# 6.1 Métricas no teste final
+# 4.13 Métricas no teste final
 # ------------------------------------------------------------
 
 resultado_teste <- accuracy(
@@ -383,7 +373,7 @@ resultado_teste
 
 
 # ------------------------------------------------------------
-# 6.2 Gráfico do teste final
+# 4.14 Gráfico do teste final
 # ------------------------------------------------------------
 
 autoplot(
@@ -400,9 +390,10 @@ autoplot(
   ) +
   labs(
     title = paste(
-      "6.2 - Previsão do modelo selecionado:",
+      "04 | ETS — modelo selecionado por CV:",
       melhor_modelo_nome
     ),
+    subtitle = paste("Teste final:", n_teste, "observações"),
     x = "Tempo",
     y = series_value_label,
     colour = NULL
@@ -411,7 +402,7 @@ autoplot(
 
 
 # ============================================================
-# 6. AJUSTE FINAL DO MELHOR MODELO
+# 4.15. AJUSTE FINAL DO MELHOR MODELO
 # ============================================================
 
 # Agora que o modelo foi:
@@ -444,7 +435,7 @@ summary(modelo_final)
 
 
 # ============================================================
-# 7. DIAGNÓSTICO DO MODELO FINAL
+# 4.18. DIAGNÓSTICO DO MODELO FINAL
 # ============================================================
 
 residuos <- residuals(
@@ -453,13 +444,13 @@ residuos <- residuals(
 
 
 # ------------------------------------------------------------
-# 7.1 Resíduos ao longo do tempo
+# 4.19 Resíduos ao longo do tempo
 # ------------------------------------------------------------
 
 autoplot(residuos) +
   labs(
     title = paste(
-      "7.1 - Resíduos:",
+      "04 | ETS — resíduos do modelo selecionado por CV:",
       melhor_modelo_nome
     ),
     x = "Tempo",
@@ -469,12 +460,12 @@ autoplot(residuos) +
 
 
 # ------------------------------------------------------------
-# 7.2 ACF dos resíduos
+# 4.20 ACF dos resíduos
 # ------------------------------------------------------------
 
 ggAcf(residuos) +
   labs(
-    title = "7.2 - ACF dos resíduos",
+    title = paste("04 | ETS — ACF dos resíduos:", melhor_modelo_nome),
     x = "Defasagem",
     y = "Autocorrelação"
   ) +
@@ -482,7 +473,7 @@ ggAcf(residuos) +
 
 
 # ------------------------------------------------------------
-# 7.3 Diagnóstico completo
+# 4.21 Diagnóstico completo
 # ------------------------------------------------------------
 
 checkresiduals(
@@ -491,7 +482,7 @@ checkresiduals(
 
 
 # ------------------------------------------------------------
-# 7.4 Teste de normalidade
+# 4.22 Teste de normalidade
 # ------------------------------------------------------------
 
 shapiro_resultado <- shapiro.test(
@@ -502,7 +493,7 @@ shapiro_resultado
 
 
 # ------------------------------------------------------------
-# 7.5 PREVISÃO FUTURA
+# 4.23 PREVISÃO FUTURA
 # ------------------------------------------------------------
 
 h_futuro <- 24
@@ -514,7 +505,7 @@ previsao_futura <- forecast(
 
 
 # ------------------------------------------------------------
-# 7.6 Gráfico da previsão
+# 4.24 Gráfico da previsão
 # ------------------------------------------------------------
 
 autoplot(
@@ -526,9 +517,10 @@ autoplot(
   ) +
   labs(
     title = paste(
-      "7.6 - Previsão futura:",
+      "04 | ETS — previsão futura após ajuste na série completa:",
       melhor_modelo_nome
     ),
+    subtitle = series_name,
     x = "Tempo",
     y = series_value_label,
     colour = NULL,
@@ -538,14 +530,14 @@ autoplot(
 
 
 # ------------------------------------------------------------
-# 7.7 Valores previstos
+# 4.25 Valores previstos
 # ------------------------------------------------------------
 
 previsao_futura$mean
 
 
 # ------------------------------------------------------------
-# 7.8 Intervalos de previsão
+# 4.26 Intervalos de previsão
 # ------------------------------------------------------------
 
 previsao_futura

@@ -4,7 +4,7 @@
 # ============================================================
 
 # ------------------------------------------------------------
-# 0. Preparação
+# 7.1. Preparação
 # ------------------------------------------------------------
 
 # library(dplyr)
@@ -13,7 +13,7 @@
 # library(tseries)
 
 # ============================================================
-# 1. SEPARAÇÃO ENTRE TREINO E TESTE
+# 7.2. SEPARAÇÃO ENTRE TREINO E TESTE
 # ============================================================
 
 # n_teste é calculado dinamicamente em main.R.
@@ -30,17 +30,8 @@ serie_teste <- window(
   start = time(ts_serie)[n_treino + 1]
 )
 
-autoplot(serie_treino, series = "Treino") +
-  autolayer(serie_teste, series = "Teste") +
-  labs(
-    title = "1.1 - Separação entre treino e teste",
-    x = "Ano",
-    y = series_value_label
-  ) +
-  theme_minimal()
-
 # ============================================================
-# 2. BUSCA DE MODELOS SARIMA
+# 7.3. BUSCA DE MODELOS SARIMA
 # ============================================================
 
 # Modelo: SARIMA(p, d, q)(P, D, Q)[s]. d vem da configuracao no main.R;
@@ -91,7 +82,7 @@ modelos <- setNames(
 modelos <- modelos[!vapply(modelos, is.null, logical(1))]
 
 # ============================================================
-# 3. AVALIAÇÃO E COMPARAÇÃO
+# 7.4. AVALIAÇÃO E COMPARAÇÃO
 # ============================================================
 
 avaliar_modelo <- function(modelo, nome) {
@@ -122,7 +113,7 @@ resultados_aic <- resultados |>
 
 # Os melhores modelos da avaliacao inicial seguem para a validacao cruzada.
 sarima_shortlist <- ordens_sarima[
-  match(head(resultados_aic$modelo, 8), ordens_sarima$nome),
+  match(head(resultados_aic$modelo, n_modelos_pre_cv), ordens_sarima$nome),
 ]
 sarima_shortlist$d <- sarima_d
 sarima_shortlist$periodo <- sarima_shortlist$s
@@ -150,12 +141,12 @@ sarima_rank_n <- aggregate(RMSE ~ modelo, sarima_resultados_n, mean)
 sarima_rank_n <- sarima_rank_n[order(sarima_rank_n$RMSE), ]
 sarima_shortlist <- merge(sarima_shortlist, sarima_rank_n, by = "modelo")
 sarima_shortlist <- sarima_shortlist[order(sarima_shortlist$RMSE), ]
-sarima_shortlist <- head(sarima_shortlist, 3L)
+sarima_shortlist <- head(sarima_shortlist, n_modelos_cv)
 write.csv(sarima_resultados_n, series_output_path("sarima_analise_por_tamanho_teste.csv"), row.names = FALSE)
 write.csv(sarima_shortlist, series_output_path("sarima_shortlist.csv"), row.names = FALSE)
 
 # ============================================================
-# 4. SELEÇÃO E PREVISÃO DO MELHOR MODELO
+# 7.5. SELEÇÃO E PREVISÃO DO MELHOR MODELO
 # ============================================================
 
 melhor_nome <- sarima_shortlist$modelo[1]
@@ -174,22 +165,24 @@ summary(melhor_modelo)
 autoplot(previsao_teste) +
   autolayer(serie_teste, series = "Valores observados") +
   labs(
-    title = paste("4.1 - Previsões no teste:", melhor_nome),
-    x = "Ano",
+    title = paste("07 | SARIMA — melhor modelo da análise inicial:", melhor_nome),
+    subtitle = paste("Série:", series_name, "| Teste final:", n_teste, "observações"),
+    x = "Tempo",
     y = series_value_label
   ) +
   theme_minimal()
 
 # ============================================================
-# 5. ANÁLISE DOS RESÍDUOS DO MELHOR MODELO
+# 7.6. ANÁLISE DOS RESÍDUOS DO MELHOR MODELO
 # ============================================================
 
 residuos <- residuals(melhor_modelo)
 
 autoplot(residuos) +
   labs(
-    title = paste("5.1 - Resíduos do modelo", melhor_nome),
-    x = "Ano",
+    title = paste("07 | SARIMA — resíduos do modelo pré-selecionado:", melhor_nome),
+    subtitle = series_name,
+    x = "Tempo",
     y = "Resíduo"
   ) +
   theme_minimal()
@@ -197,7 +190,7 @@ autoplot(residuos) +
 acf(
   residuos,
   lag.max = 36,
-  main = "5.2 - ACF dos resíduos"
+  main = paste("07 | SARIMA — ACF dos resíduos:", melhor_nome)
 )
 
 # Diagnóstico gráfico e teste de Ljung-Box para autocorrelação residual.
@@ -211,7 +204,7 @@ if (length(residuos_validos) >= 3 && length(residuos_validos) <= 5000) {
   message("O teste de Shapiro-Wilk requer entre 3 e 5.000 resíduos válidos.")
 }
 
-qqnorm(residuos_validos, main = "5.3 - Gráfico Q-Q dos resíduos")
+qqnorm(residuos_validos, main = paste("07 | SARIMA — Q-Q dos resíduos:", melhor_nome))
 qqline(residuos_validos, col = "red")
 
 # Critérios de informação do modelo selecionado.
@@ -220,7 +213,7 @@ cat("BIC do melhor modelo:", BIC(melhor_modelo), "\n")
 
 
 # ------------------------------------------------------------
-# 6 PREVISÃO FUTURA
+# 7.7 PREVISÃO FUTURA
 # ------------------------------------------------------------
 
 
@@ -233,7 +226,7 @@ previsao_futura <- forecast(
 
 
 # ------------------------------------------------------------
-# 6.1 Gráfico da previsão
+# 7.8 Gráfico da previsão
 # ------------------------------------------------------------
 
 autoplot(
@@ -245,9 +238,10 @@ autoplot(
   ) +
   labs(
     title = paste(
-      "6.1 - Previsão futura:",
+      "07 | SARIMA — previsão futura após ajuste na série completa:",
       melhor_nome
     ),
+    subtitle = series_name,
     x = "Tempo",
     y = series_value_label,
     colour = NULL,

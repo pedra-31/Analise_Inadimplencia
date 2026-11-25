@@ -9,7 +9,7 @@
 
 
 # ------------------------------------------------------------
-# 1. Separacao entre treino e teste final
+# 6.1. Separacao entre treino e teste final
 # ------------------------------------------------------------
 
 # n_teste, h_cv e initial sao calculados dinamicamente em main.R.
@@ -23,7 +23,7 @@ serie_treino <- window(ts_serie, end = time(ts_serie)[n - n_teste])
 serie_teste <- window(ts_serie, start = time(ts_serie)[n - n_teste + 1])
 
 # ------------------------------------------------------------
-# 2. Parametros da validacao cruzada
+# 6.2. Parametros da validacao cruzada
 # ------------------------------------------------------------
 
 # As metricas serao calculadas em cada passo de previsao, de 1 ate h_cv.
@@ -32,7 +32,7 @@ if (length(serie_treino) < initial + h_cv) {
 }
 
 # ------------------------------------------------------------
-# 3. Modelos ARIMA candidatos
+# 6.3. Modelos ARIMA candidatos
 # ------------------------------------------------------------
 
 # Usa somente os melhores modelos encontrados em R/05_ARIMA_analysis.R.
@@ -52,7 +52,7 @@ ajustar_arima <- function(y, especificacao) {
 }
 
 # ------------------------------------------------------------
-# 4. Validacao cruzada de origem movel
+# 6.4. Validacao cruzada de origem movel
 # ------------------------------------------------------------
 
 # Treino expansivo: em cada origem entram apenas dados anteriores.
@@ -118,7 +118,7 @@ for (m in seq_len(nrow(modelos))) {
 }
 
 # ------------------------------------------------------------
-# 5. Metricas por modelo e horizonte
+# 6.5. Metricas por modelo e horizonte
 # ------------------------------------------------------------
 
 # RMSE/MAE agrupados entre origens; desvio padrao/variancia do erro
@@ -162,7 +162,7 @@ print(resultados_horizonte, row.names = FALSE)
 print(resumo_cv, row.names = FALSE)
 
 # ------------------------------------------------------------
-# 6. Salvamento dos resultados da validacao cruzada
+# 6.6. Salvamento dos resultados da validacao cruzada
 # ------------------------------------------------------------
 
 write.csv(
@@ -184,8 +184,9 @@ grafico_cv <- ggplot(
   geom_point(size = 2) +
   scale_x_continuous(breaks = seq_len(h_cv)) +
   labs(
-    title = "ARIMA: RMSE da validacao cruzada por horizonte",
-    x = "Horizonte de previsao (passos a frente)",
+    title = paste("06 | ARIMA — CV rolling-origin:", series_name),
+    subtitle = paste("Horizonte:", h_cv, "| Origens:", length(origens)),
+    x = "Horizonte de previsão (passos)",
     y = "RMSE entre origens",
     color = "Modelo"
   ) +
@@ -194,7 +195,7 @@ grafico_cv <- ggplot(
 print(grafico_cv)
 
 # ------------------------------------------------------------
-# 7. Avaliacao unica no teste final
+# 6.7. Avaliacao unica no teste final
 # ------------------------------------------------------------
 
 if (all(!is.finite(resumo_cv$RMSE_CV))) {
@@ -235,7 +236,8 @@ autoplot(serie_treino, series = "Treino") +
   autolayer(serie_teste, series = "Teste") +
   autolayer(previsao_teste$mean, series = melhor_modelo_nome) +
   labs(
-    title = paste("ARIMA selecionado:", melhor_modelo_nome),
+    title = paste("06 | ARIMA — modelo selecionado por CV:", melhor_modelo_nome),
+    subtitle = paste("Teste final:", n_teste, "observações"),
     x = "Tempo",
     y = series_value_label,
     colour = NULL

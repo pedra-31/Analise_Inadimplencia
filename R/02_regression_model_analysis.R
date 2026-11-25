@@ -4,7 +4,7 @@
 # ============================================================
 
 # ------------------------------------------------------------
-# 0. Preparação
+# 2.1. Preparação
 # ------------------------------------------------------------
 
 # library(dplyr)
@@ -15,11 +15,11 @@
 serie_inadp$t <- 1:nrow(serie_inadp)
 
 # ============================================================
-# 2. MODELAGEM: REGRESSÃO LINEAR
+# 2.2. MODELAGEM: REGRESSÃO LINEAR
 # ============================================================
 
 # ------------------------------------------------------------
-# 2.1 Regressão linear simples
+# 2.3 Regressão linear simples
 # ------------------------------------------------------------
 
 modelo <- lm(
@@ -31,7 +31,7 @@ summary(modelo)
 
 
 # ------------------------------------------------------------
-# 2.2 Valores ajustados e resíduos
+# 2.4 Valores ajustados e resíduos
 # ------------------------------------------------------------
 
 ajustados <- fitted(modelo)
@@ -39,7 +39,7 @@ residuos <- residuals(modelo)
 
 
 # ------------------------------------------------------------
-# 2.3 Gráfico da série e reta ajustada
+# 2.5 Gráfico da série e reta ajustada
 # ------------------------------------------------------------
 
 ggplot(serie_inadp, aes(x = t, y = y)) +
@@ -52,7 +52,7 @@ ggplot(serie_inadp, aes(x = t, y = y)) +
   ) +
 
   labs(
-    title = paste("2.3 -", series_name, "e tendência linear"),
+    title = paste("02 | Regressão linear —", series_name),
     x = "Tempo",
     y = series_value_label
   ) +
@@ -61,11 +61,11 @@ ggplot(serie_inadp, aes(x = t, y = y)) +
 
 
 # ============================================================
-# 3. ANÁLISE DOS RESÍDUOS
+# 2.6. ANÁLISE DOS RESÍDUOS
 # ============================================================
 
 # ------------------------------------------------------------
-# 3.1 Gráfico dos resíduos
+# 2.7 Gráfico dos resíduos
 # ------------------------------------------------------------
 
 ggplot(
@@ -81,7 +81,7 @@ ggplot(
   ) +
 
   labs(
-    title = "3.1 - Resíduos da regressão",
+    title = paste("02 | Resíduos da regressão —", series_name),
     x = "Tempo",
     y = "Resíduo"
   ) +
@@ -90,7 +90,7 @@ ggplot(
 
 
 # ------------------------------------------------------------
-# 3.2 Autocovariância dos resíduos
+# 2.8 Autocovariância dos resíduos
 # ------------------------------------------------------------
 
 autocovariancia <- function(x, h) {
@@ -131,39 +131,39 @@ print(resultado_autocov)
 
 
 # ------------------------------------------------------------
-# 3.3 Autocovariância usando função do R
+# 2.9 Autocovariância usando função do R
 # ------------------------------------------------------------
 
 acf(
   residuos,
   type = "covariance",
-  main = "3.3 - Autocovariância dos resíduos"
+  main = paste("02 | Autocovariância dos resíduos —", series_name)
 )
 
 
 # ------------------------------------------------------------
-# 3.4 Autocorrelação dos resíduos
+# 2.10 Autocorrelação dos resíduos
 # ------------------------------------------------------------
 
 acf(
   residuos,
-  main = "3.4 - ACF dos resíduos"
+  main = paste("02 | ACF dos resíduos —", series_name)
 )
 
 
 # ============================================================
-# 4. TESTES E DIAGNÓSTICOS
+# 2.11. TESTES E DIAGNÓSTICOS
 # ============================================================
 
 # ------------------------------------------------------------
-# 4.1 Teste de normalidade dos resíduos
+# 2.12 Teste de normalidade dos resíduos
 # ------------------------------------------------------------
 
 shapiro.test(residuos)
 
 
 # ------------------------------------------------------------
-# 4.2 Diagnóstico completo dos resíduos
+# 2.13 Diagnóstico completo dos resíduos
 # ------------------------------------------------------------
 
 checkresiduals(modelo)

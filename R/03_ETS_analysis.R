@@ -4,7 +4,7 @@
 # ============================================================
 
 # ------------------------------------------------------------
-# 0. Preparação
+# 3.1. Preparação
 # ------------------------------------------------------------
 
 # library(dplyr)
@@ -12,11 +12,11 @@
 # library(ggplot2)
 
 # ============================================================
-# 2. MODELAGEM: SUAVIZAÇÃO
+# 3.2. MODELAGEM: SUAVIZAÇÃO
 # ============================================================
 
 # ------------------------------------------------------------
-# 2.1 Separação em treino e teste
+# 3.3 Separação em treino e teste
 # ------------------------------------------------------------
 
 # O tamanho do teste final é calculado em main.R a partir da série.
@@ -39,20 +39,8 @@ length(serie_teste)
 
 # Visualizando a separação
 
-autoplot(ts_serie, series = "Série") +
-  autolayer(serie_treino, series = "Treino") +
-  autolayer(serie_teste, series = "Teste") +
-  labs(
-    title = "2.1 - Separação entre treino e teste",
-    x = "Tempo",
-    y = series_value_label,
-    colour = NULL
-  ) +
-  theme_minimal()
-
-
 # ------------------------------------------------------------
-# 2.2 Construção dos modelos
+# 3.4 Construção dos modelos
 # ------------------------------------------------------------
 
 # Suavização exponencial simples
@@ -95,7 +83,7 @@ modelo_auto <- ets(serie_treino)
 
 
 # ------------------------------------------------------------
-# 2.3 Resumo dos modelos
+# 3.5 Resumo dos modelos
 # ------------------------------------------------------------
 
 summary(modelo_ANN)
@@ -107,7 +95,7 @@ summary(modelo_auto)
 
 
 # ------------------------------------------------------------
-# 2.4 Previsões para a amostra de teste
+# 3.6 Previsões para a amostra de teste
 # ------------------------------------------------------------
 
 prev_ANN <- forecast(
@@ -142,7 +130,7 @@ prev_auto <- forecast(
 
 
 # ------------------------------------------------------------
-# 2.5 Comparação visual das previsões
+# 3.7 Comparação visual das previsões
 # ------------------------------------------------------------
 
 grafico <- autoplot(serie_treino, series = "Treino") +
@@ -166,7 +154,8 @@ grafico <- autoplot(serie_treino, series = "Treino") +
     series = "ETS automático"
   ) +
   labs(
-    title = "2.5 - Previsões dos modelos na amostra de teste",
+    title = paste("03 | ETS — comparação no teste final:", series_name),
+    subtitle = paste("Horizonte:", n_teste, "observações"),
     x = "Tempo",
     y = series_value_label,
     colour = NULL
@@ -189,7 +178,7 @@ grafico
 
 
 # ------------------------------------------------------------
-# 2.6 Avaliação das previsões
+# 3.8 Avaliação das previsões
 # ------------------------------------------------------------
 
 accuracy(prev_ANN, serie_teste)
@@ -201,7 +190,7 @@ accuracy(prev_auto, serie_teste)
 
 
 # ------------------------------------------------------------
-# 2.7 Tabela comparativa dos modelos
+# 3.9 Tabela comparativa dos modelos
 # ------------------------------------------------------------
 
 modelos <- list(
@@ -250,7 +239,7 @@ resultados
 
 
 # ============================================================
-# 2.8 DIAGNÓSTICO DO MELHOR MODELO
+# 3.10 DIAGNÓSTICO DO MELHOR MODELO
 # ============================================================
 
 # Selecionando o modelo com menor RMSE
@@ -271,7 +260,7 @@ residuos <- residuals(melhor_modelo)
 autoplot(residuos) +
   labs(
     title = paste(
-      "2.8.1 - Resíduos do modelo",
+      "03 | ETS — resíduos do modelo:",
       melhor_modelo_nome
     ),
     x = "Tempo",
@@ -286,7 +275,7 @@ autoplot(residuos) +
 
 ggAcf(residuos) +
   labs(
-    title = "2.8.2 - ACF dos resíduos",
+    title = paste("03 | ETS — ACF dos resíduos:", melhor_modelo_nome),
     x = "Defasagem",
     y = "Autocorrelação"
   ) +
@@ -310,11 +299,11 @@ shapiro_resultado
 
 
 # ============================================================
-# 3. EXPLORAÇÃO E PREVISÃO FUTURA
+# 3.11. EXPLORAÇÃO E PREVISÃO FUTURA
 # ============================================================
 
 # ------------------------------------------------------------
-# 3.1 Reajuste do melhor modelo em toda a série
+# 3.12 Reajuste do melhor modelo em toda a série
 # ------------------------------------------------------------
 
 if (melhor_modelo_nome == "ETS(ANN)") {
@@ -364,7 +353,7 @@ if (melhor_modelo_nome == "ETS(ANN)") {
 
 
 # ------------------------------------------------------------
-# 3.2 Previsão futura
+# 3.13 Previsão futura
 # ------------------------------------------------------------
 
 h_futuro <- 24
@@ -376,7 +365,7 @@ previsao_futura <- forecast(
 
 
 # ------------------------------------------------------------
-# 3.3 Gráfico da previsão futura
+# 3.14 Gráfico da previsão futura
 # ------------------------------------------------------------
 
 autoplot(previsao_futura) +
@@ -385,10 +374,8 @@ autoplot(previsao_futura) +
     series = "Observado"
   ) +
   labs(
-    title = paste(
-      "3.3 Previsão futura -",
-      melhor_modelo_nome
-    ),
+    title = paste("03 | ETS — previsão futura com a série completa:", melhor_modelo_nome),
+    subtitle = series_name,
     x = "Tempo",
     y = series_value_label,
     colour = NULL,
@@ -398,14 +385,14 @@ autoplot(previsao_futura) +
 
 
 # ------------------------------------------------------------
-# 3.4 Valores previstos
+# 3.15 Valores previstos
 # ------------------------------------------------------------
 
 previsao_futura$mean
 
 
 # ------------------------------------------------------------
-# 3.5 Intervalos de previsão
+# 3.16 Intervalos de previsão
 # ------------------------------------------------------------
 
 previsao_futura

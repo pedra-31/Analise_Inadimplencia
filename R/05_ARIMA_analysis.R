@@ -4,7 +4,7 @@
 # ============================================================
 
 # ------------------------------------------------------------
-# 0. Preparação
+# 5.1. Preparação
 # ------------------------------------------------------------
 
 # library(dplyr)
@@ -13,7 +13,7 @@
 # library(tseries)
 
 # ============================================================
-# 2. SEPARAÇÃO ENTRE TREINO E TESTE
+# 5.2. SEPARAÇÃO ENTRE TREINO E TESTE
 # ============================================================
 
 # n_teste é calculado dinamicamente em main.R.
@@ -35,23 +35,12 @@ serie_teste <- window(
   start = time(ts_serie)[n_treino + 1]
 )
 
-# Gráfico da separação
-autoplot(serie_treino, series = "Treino") +
-  autolayer(serie_teste, series = "Teste") +
-  labs(
-    title = "2.1 - Separação entre treino e teste",
-    x = "Ano",
-    y = series_value_label
-  ) +
-  theme_minimal()
-
-
 # ============================================================
-# 3. MODELAGEM ARIMA
+# 5.3. MODELAGEM ARIMA
 # ============================================================
 
 # ------------------------------------------------------------
-# 3.1 Ajuste dos modelos ARIMA
+# 5.4 Ajuste dos modelos ARIMA
 # ------------------------------------------------------------
 
 
@@ -101,7 +90,7 @@ if (length(modelos) == 0) {
 #AICc=AIC+T−p−q−k−22(p+q+k+1)(p+q+k+2),
 
 # ------------------------------------------------------------
-# 3.2 Função para calcular as métricas
+# 5.5 Função para calcular as métricas
 # ------------------------------------------------------------
 
 avaliar_modelo <- function(modelo, nome) {
@@ -127,7 +116,7 @@ avaliar_modelo <- function(modelo, nome) {
 
 
 # ------------------------------------------------------------
-# 3.3 Avaliação individual dos modelos
+# 5.6 Avaliação individual dos modelos
 # ------------------------------------------------------------
 
 # Avalia todos os modelos que foram ajustados na matriz.
@@ -137,7 +126,7 @@ resultados <- bind_rows(lapply(names(modelos), function(nome) {
 
 
 # ------------------------------------------------------------
-# 3.4 Comparação dos modelos
+# 5.7 Comparação dos modelos
 # ------------------------------------------------------------
 
 # Ordenação pelo AICc
@@ -153,7 +142,7 @@ print(resultados_rmse)
 
 # Os melhores modelos da avaliacao inicial seguem para a validacao cruzada.
 arima_shortlist <- ordens_arima[
-  match(head(resultados_aic$modelo, 8), ordens_arima$nome),
+  match(head(resultados_aic$modelo, n_modelos_pre_cv), ordens_arima$nome),
   c("nome", "p", "q")
 ]
 names(arima_shortlist)[names(arima_shortlist) == "nome"] <- "modelo"
@@ -179,13 +168,13 @@ arima_rank_n <- aggregate(RMSE ~ modelo, arima_resultados_n, mean)
 arima_rank_n <- arima_rank_n[order(arima_rank_n$RMSE), ]
 arima_shortlist <- merge(arima_shortlist, arima_rank_n, by = "modelo")
 arima_shortlist <- arima_shortlist[order(arima_shortlist$RMSE), ]
-arima_shortlist <- head(arima_shortlist, 3L)
+arima_shortlist <- head(arima_shortlist, n_modelos_cv)
 write.csv(arima_resultados_n, series_output_path("arima_analise_por_tamanho_teste.csv"), row.names = FALSE)
 write.csv(arima_shortlist, series_output_path("arima_shortlist.csv"), row.names = FALSE)
 
 
 # ============================================================
-# 4. SELEÇÃO DO MODELO
+# 5.8. SELEÇÃO DO MODELO
 # ============================================================
 
 # Selecao inicial pelo menor RMSE no periodo de teste.
@@ -200,7 +189,7 @@ qqnorm(melhor_modelo$residuals)
 
 
 # ------------------------------------------------------------
-# 4.1 Previsões do modelo selecionado
+# 5.9 Previsões do modelo selecionado
 # ------------------------------------------------------------
 
 previsao_teste <- forecast(
@@ -214,29 +203,27 @@ autoplot(previsao_teste) +
     series = "Valores observados"
   ) +
   labs(
-    title = paste(
-      "4.1 - Previsões no teste:",
-      melhor_nome
-    ),
-    x = "Ano",
+    title = paste("05 | ARIMA — melhor modelo da análise inicial:", melhor_nome),
+    subtitle = paste("Série:", series_name, "| Teste final:", n_teste, "observações"),
+    x = "Tempo",
     y = series_value_label
   ) +
   theme_minimal()
 
 
 # ============================================================
-# 5. ANÁLISE DOS RESÍDUOS
+# 5.10. ANÁLISE DOS RESÍDUOS
 # ============================================================
 
 # ------------------------------------------------------------
-# 5.1 Gráfico e ACF dos resíduos
+# 5.11 Gráfico e ACF dos resíduos
 # ------------------------------------------------------------
 
 residuos <- residuals(melhor_modelo)
 
 autoplot(residuos) +
   labs(
-    title = "5.1 - Resíduos do modelo selecionado",
+    title = paste("05 | ARIMA — resíduos do modelo pré-selecionado:", melhor_nome),
     x = "Ano",
     y = "Resíduo"
   ) +
@@ -245,19 +232,19 @@ autoplot(residuos) +
 acf(
   residuos,
   lag.max = 36,
-  main = "5.2 - ACF dos resíduos"
+  main = paste("05 | ARIMA — ACF dos resíduos:", melhor_nome)
 )
 
 
 # ------------------------------------------------------------
-# 5.3 Diagnóstico completo dos resíduos
+# 5.12 Diagnóstico completo dos resíduos
 # ------------------------------------------------------------
 
 checkresiduals(melhor_modelo)
 
 
 # ------------------------------------------------------------
-# 5.4 Teste de normalidade
+# 5.13 Teste de normalidade
 # ------------------------------------------------------------
 
 #Nenhum arima que eu verifiquei passou no teste de normalidade
@@ -266,7 +253,7 @@ shapiro.test(
 )
 
 # ------------------------------------------------------------
-# 5.5 AIC e BIC
+# 5.14 AIC e BIC
 # ------------------------------------------------------------
 print(resultados_rmse[1,"AIC"])
 print(resultados_rmse[1,"BIC"])
