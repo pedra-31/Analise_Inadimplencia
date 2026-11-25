@@ -34,16 +34,21 @@ serie_teste <- window(
 # 7.3. BUSCA DE MODELOS SARIMA
 # ============================================================
 
-# Modelo: SARIMA(p, d, q)(P, D, Q)[s]. d vem da configuracao no main.R;
-# o periodo sazonal vem da frequencia da serie.
+# Modelo: SARIMA(p, d, q)(P, D, Q)[s]. d vem da configuracao do script de entrada;
+# s usa seasonal_frequency quando definido, ou a frequencia da serie como padrao.
 sarima_d <- nonseasonal_differencing
+sarima_periodo <- if (exists("seasonal_frequency", inherits = TRUE)) {
+  seasonal_frequency
+} else {
+  frequency(ts_serie)
+}
 ordens_sarima <- expand.grid(
   p = 0:2,
   q = 0:2,
   P = 0:1,
   D = 0:1,
   Q = 0:1,
-  s = frequency(ts_serie)
+  s = sarima_periodo
 )
 
 ordens_sarima$nome <- with(

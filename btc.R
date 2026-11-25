@@ -5,15 +5,15 @@ library(forecast)
 library(ggplot2)
 library(tseries)
 
-input_file <- "data/processed/serie_temporal_inadimplencia_filtered.csv"
+input_file <- "data/processed/btc_filtered.csv"
 value_column <- "y"
-date_column <- "data"
-series_name <- "Inadimplência"
+date_column <- "date"
+series_name <- "BTC"
 series_value_label <- "Valor"
-nonseasonal_differencing <- 2
-cv_horizon <- 24
 n_modelos_pre_cv <- 12L
 n_modelos_cv <- 8L
+nonseasonal_differencing <- 2
+cv_horizon <- 24
 series_file_prefix <- tolower(gsub(
   "_+$", "",
   gsub("^_+", "", gsub("[^[:alnum:]]+", "_",
@@ -25,55 +25,34 @@ series_output_path <- function(file_name) {
 
 if (!file.exists(input_file)) {
   stop("Arquivo tratado não encontrado: ", input_file,
-       ". Execute scripts/prepare_series.R ou ajuste input_file.")
+       ". Execute scripts/prepare_btc.R ou ajuste input_file.")
 }
 
 serie_dados <- read.csv(input_file, stringsAsFactors = FALSE)
 if (!value_column %in% names(serie_dados)) stop("Coluna não encontrada: ", value_column)
 if (anyNA(serie_dados[[value_column]])) stop("A série contém valores ausentes.")
 
-# Infere a frequência a partir do intervalo das datas. Se não houver uma
-# coluna de datas utilizável, busca a periodicidade dominante dos valores.
-if (date_column %in% names(serie_dados)) {
-  datas_serie <- as.Date(serie_dados[[date_column]])
-  if (anyNA(datas_serie)) stop("A coluna de datas contém valores inválidos: ", date_column)
+if (!date_column %in% names(serie_dados)) {
+  stop("Coluna de datas não encontrada: ", date_column)
+}
+datas_serie <- as.Date(serie_dados[[date_column]])
+if (anyNA(datas_serie)) stop("A coluna de datas contém valores inválidos: ", date_column)
 
-  indice_mes <- as.integer(format(datas_serie, "%Y")) * 12L +
-    as.integer(format(datas_serie, "%m"))
-  diferencas_mes <- diff(indice_mes)
-  diferencas_dia <- as.integer(diff(datas_serie))
-
-  gcd <- function(a, b) if (b == 0L) abs(a) else Recall(b, a %% b)
-  passo_mes <- if (length(diferencas_mes) && all(diferencas_mes > 0L)) {
-    Reduce(gcd, diferencas_mes)
-  } else 0L
-
-  if (passo_mes > 0L && 12L %% passo_mes == 0L) {
-    series_frequency <- 12L %/% passo_mes
-  } else if (length(diferencas_dia) && all(diferencas_dia > 0L) &&
-             all(diferencas_dia %% 7L == 0L)) {
-    series_frequency <- 52L
-  } else if (length(diferencas_dia) && all(diferencas_dia == 1L)) {
-    series_frequency <- 7L
-  } else {
-    series_frequency <- forecast::findfrequency(as.numeric(serie_dados[[value_column]]))
-  }
-
-  ano_inicio <- as.integer(format(datas_serie[1], "%Y"))
-  mes_inicio <- as.integer(format(datas_serie[1], "%m"))
-  if (series_frequency %in% c(1L, 2L, 4L, 12L)) {
-    series_start <- c(ano_inicio, ceiling(mes_inicio * series_frequency / 12))
-  } else if (series_frequency == 52L) {
-    series_start <- c(ano_inicio, as.integer(format(datas_serie[1], "%U")) + 1L)
-  } else {
-    series_start <- c(ano_inicio, as.integer(format(datas_serie[1], "%u")))
-  }
+# O CSV do BTC tem observações diárias. A frequência 365 mantém o eixo
+# temporal em anos; o ciclo semanal de 7 observações é usado pelo SARIMA.
+diferencas_dia <- as.integer(diff(datas_serie))
+if (length(diferencas_dia) && all(diferencas_dia == 1L)) {
+  series_frequency <- 365L
+  seasonal_frequency <- 7L
+  series_start <- c(
+    as.integer(format(datas_serie[1], "%Y")),
+    as.integer(format(datas_serie[1], "%j"))
+  )
 } else {
-  series_frequency <- forecast::findfrequency(as.numeric(serie_dados[[value_column]]))
-  series_start <- c(1, 1)
+  stop("Esperava datas BTC diárias consecutivas em ", input_file,
+       ". Verifique scripts/prepare_btc.R e o CSV tratado.")
 }
 
-message("Frequência inferida: ", series_frequency, " observações por ciclo.")
 ts_serie <- ts(as.numeric(serie_dados[[value_column]]), start = series_start,
                frequency = series_frequency)
 serie_inadp <- serie_dados
@@ -84,7 +63,7 @@ if (n_serie < max(8, 2 * series_frequency)) {
 }
 
 # Reserva 15% para teste final, com limites compatíveis com séries curtas.
-n_teste <- min(max(1L, floor(n_serie * 0.15)), max(1L, n_serie - 2L * series_frequency))
+n_teste <- min(max(1L, floor(n_serie * 0.19)), max(1L, n_serie - 2L * series_frequency))
 n_treino <- n_serie - n_teste
 
 #teste_candidatos define a porcentagem reservada para validação em cada corte interno. 
